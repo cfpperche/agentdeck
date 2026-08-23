@@ -7,6 +7,12 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Settings route** (`/settings`, deep-linkable, back-button safe):
+  Appearance section with System / Dark / Light theme cards (instant
+  apply, current resolved theme shown on System) + About section with
+  live server info (version, execution mode). Gear icon in the sidebar
+  footer next to the quick theme toggle. Route follows the benchmark
+  pattern (t3code `routes/settings.tsx` + panels).
 - **Automatic TLS renewal**: `setup-cert.sh --check <days>` (no-op when
   healthy, unattended re-issuance otherwise — the trusted CA outlives
   leafs, so no UAC/browser action is ever needed again), systemd units

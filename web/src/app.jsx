@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { api, openEvents } from "./api.js";
 import { Sidebar, Message, Composer, Logo } from "./components.jsx";
 import { AgentIcon } from "./icons.jsx";
+import { SettingsPanel } from "./components.jsx";
 import { useTheme } from "./theme.js";
 
 export function App() {
@@ -15,6 +16,7 @@ export function App() {
   const [status, setStatus] = useState("idle"); // idle | running | waiting
   const [queuedCount, setQueuedCount] = useState(0);
   const [permission, setPermission] = useState(null); // pending approval (ADR-0004)
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toast, setToast] = useState(null);
@@ -40,24 +42,33 @@ export function App() {
   useEffect(() => {
     api.agents().then(setAgents).catch(() => {});
     refreshSessions();
-    const s = sidFromURL();
-    if (s) {
-      setActiveId(s);
-      if (location.search) // normalize legacy deep-links in place
-        history.replaceState({}, "", `/s/${s}`);
+    // boot: parse BOTH routes (settings deep-link + legacy session link)
+    if (location.pathname.startsWith("/settings")) {
+      setSettingsOpen(true);
+    } else {
+      const s = sidFromURL();
+      if (s) {
+        setActiveId(s);
+        if (location.search) // normalize legacy deep-links in place
+          history.replaceState({}, "", `/s/${s}`);
+      }
     }
   }, []);
 
   useEffect(() => {
-    const onPop = () => setActiveId(sidFromURL());
+    const onPop = () => {
+      const p = location.pathname;
+      setSettingsOpen(p.startsWith("/settings"));
+      setActiveId(sidFromURL());
+    };
     addEventListener("popstate", onPop);
     return () => removeEventListener("popstate", onPop);
   }, []);
 
   useEffect(() => {
-    const want = activeId ? `/s/${activeId}` : "/";
+    const want = settingsOpen ? "/settings" : activeId ? `/s/${activeId}` : "/";
     if (location.pathname !== want) history.pushState({}, "", want);
-  }, [activeId]);
+  }, [activeId, settingsOpen]);
 
   useEffect(() => {
     esRef.current?.close();
@@ -133,11 +144,12 @@ export function App() {
       <Sidebar
         sessions={sessions} agents={agents} activeId={activeId}
         filter={filter} setFilter={setFilter}
-        onOpen={setActiveId} onNew={() => newSession()}
+        onOpen={(id) => { setSettingsOpen(false); setActiveId(id); }} onNew={() => { setSettingsOpen(false); newSession(); }}
         onRename={(id, t) => api.renameSession(id, t).then(refreshSessions)}
         onDelete={(id) => api.deleteSession(id).then(() => { if (id === activeId) setActiveId(null); refreshSessions(); })}
         open={sidebarOpen} setOpen={setSidebarOpen}
         theme={theme.current} onToggleTheme={theme.toggle}
+        onOpenSettings={() => { setSettingsOpen(true); setActiveId(null); }}
       />
 
       <main class="flex-1 flex flex-col min-w-0 relative" style={{ background: "var(--bg-canvas)" }}>
@@ -185,7 +197,9 @@ export function App() {
 
         {/* content area */}
         <div ref={listRef} onScroll={onScroll} class="flex-1 overflow-y-auto">
-          {!active ? (
+          {settingsOpen ? (
+            <SettingsPanel themePref={theme.pref} currentTheme={theme.current} onSetTheme={(t) => { theme.setPref(t); }} />
+          ) : !active ? (
             <EmptyState agents={agents} onNew={newSession} />
           ) : (
             <div class="max-w-3xl mx-auto w-full px-4 md:px-6 py-6">

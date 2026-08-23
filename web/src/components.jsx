@@ -51,7 +51,7 @@ const groupOf = (iso) => {
 /* --------------------------------------------------------------- sidebar */
 export function Sidebar({
   sessions, agents, activeId, filter, setFilter,
-  onOpen, onNew, onRename, onDelete, open, setOpen, theme, onToggleTheme,
+  onOpen, onNew, onRename, onDelete, open, setOpen, theme, onToggleTheme, onOpenSettings,
 }) {
   const [editing, setEditing] = useState(null);
   const [editTitle, setEditTitle] = useState("");
@@ -350,5 +350,96 @@ export function Composer({ running, onSend, onStop, disabled, sessionId }) {
       </div>
       <p class="sr-only">Enter envia, Shift+Enter quebra linha</p>
     </div>
+  );
+}
+
+/* ---------------------------------------------------------------- settings */
+const ThemeIcon = ({ kind }) =>
+  kind === "system" ? (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M12 9v4m-2-2h4M2 20h20"/></svg>
+  ) : kind === "dark" ? (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+  ) : (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+  );
+
+export function SettingsPanel({ themePref, onSetTheme, currentTheme }) {
+  const options = [
+    { id: "system", label: "System", desc: "Follows your OS" },
+    { id: "dark", label: "Dark", desc: "Always dark" },
+    { id: "light", label: "Light", desc: "Always light" },
+  ];
+  return (
+    <div class="max-w-xl mx-auto w-full px-4 md:px-6 py-8">
+      <h2 class="text-lg font-semibold mb-1" style={{ color: "var(--text-1)" }}>Settings</h2>
+      <p class="text-sm mb-8" style={{ color: "var(--text-3)" }}>Preferences are stored in this browser.</p>
+
+      <section>
+        <h3 class="text-[11px] font-medium uppercase tracking-wider mb-3" style={{ color: "var(--text-3)" }}>Appearance</h3>
+        <div class="grid grid-cols-3 gap-2.5">
+          {options.map((o) => {
+            const active = themePref === o.id;
+            return (
+              <button
+                key={o.id}
+                onClick={() => onSetTheme(o.id)}
+                class="flex flex-col items-start gap-2 rounded-xl p-3.5 surface active:scale-[0.98] transition-all"
+                style={{
+                  background: "var(--bg-card)",
+                  border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                }}
+              >
+                <span style={{ color: active ? "var(--accent-fg)" : "var(--text-2)" }}><ThemeIcon kind={o.id} /></span>
+                <span class="text-sm font-medium" style={{ color: "var(--text-1)" }}>{o.label}</span>
+                <span class="text-[11px]" style={{ color: "var(--text-3)" }}>
+                  {o.desc}{o.id === "system" && currentTheme ? ` · ${currentTheme}` : ""}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <AboutSection />
+    </div>
+  );
+}
+
+function AboutSection() {
+  const [info, setInfo] = useState(null);
+  useEffect(() => {
+    fetch("/api/server-info")
+      .then((r) => r.json())
+      .then(setInfo)
+      .catch(() => {});
+  }, []);
+  const rows = info
+    ? [
+        ["Version", info.version || "—"],
+        ["Execution mode", info.mode || "—"],
+      ]
+    : [];
+  return (
+    <section class="mt-10">
+      <h3 class="text-[11px] font-medium uppercase tracking-wider mb-3" style={{ color: "var(--text-3)" }}>About</h3>
+      <div class="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+        {rows.length === 0 && (
+          <div class="px-4 py-3 text-sm" style={{ color: "var(--text-3)" }}>loading…</div>
+        )}
+        {rows.map(([k, v], i) => (
+          <div
+            key={k}
+            class="flex items-center justify-between px-4 py-3"
+            style={{ background: "var(--bg-card)", borderTop: i ? "1px solid var(--border-soft)" : "none" }}
+          >
+            <span class="text-sm" style={{ color: "var(--text-2)" }}>{k}</span>
+            <span class="text-sm font-mono" style={{ color: "var(--text-1)" }}>{v}</span>
+          </div>
+        ))}
+      </div>
+      <p class="text-[11px] mt-3" style={{ color: "var(--text-3)" }}>
+        AgentDeck — the web cockpit for local AI agents. github.com/cfpperche/agentdeck
+      </p>
+    </section>
   );
 }
