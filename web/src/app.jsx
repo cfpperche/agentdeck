@@ -161,7 +161,9 @@ export function App() {
           <button class="md:hidden text-zinc-400 p-1.5 -ml-1.5" onClick={() => setSidebarOpen(true)} aria-label="menu">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
           </button>
-          {active ? (
+          {settingsOpen ? (
+            <h1 class="font-medium truncate text-[15px]" style={{ color: "var(--text-1)" }}>Settings</h1>
+          ) : active ? (
             <>
               <AgentIcon id={active.agent} size={16} color={agentMeta?.color || "#888"} />
               <h1 class="font-medium truncate text-[15px]" style={{ color: "var(--text-1)" }}>{active.title || "untitled"}</h1>
