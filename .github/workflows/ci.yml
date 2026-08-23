@@ -22,6 +22,32 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  go:
+    name: Go (vet, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build web UI (for go:embed)
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go build -o bin/agentdeck .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agentdeck-linux-amd64
+          path: bin/agentdeck
+
   legacy:
     name: Legacy (syntax)
     runs-on: ubuntu-latest

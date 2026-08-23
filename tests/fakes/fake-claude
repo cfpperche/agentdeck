@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# fake-claude — test double for the Claude adapter: emits the same
+# stream-json shapes the real CLI emits (calibrated lines).
+# Behavior knobs via env:
+#   FAKE_SLEEP=seconds   stall before output (test busy/stop paths)
+#   FAKE_FAIL=1          exit non-zero with stderr noise
+cat <<'EOF'
+{"type":"system","subtype":"init","session_id":"fake-session-001","model":"fake"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"echo hello"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Ran echo hello"}]}}
+{"type":"result","subtype":"success","result":"Ran echo hello","session_id":"fake-session-001"}
+EOF
+if [ -n "$FAKE_SLEEP" ]; then sleep "$FAKE_SLEEP"; fi
+if [ "$FAKE_FAIL" = "1" ]; then echo "fatal: boom" >&2; exit 3; fi
+exit 0

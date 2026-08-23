@@ -54,23 +54,28 @@ Adding an agent is an adapter: one command builder + one event parser
 
 ## Quick start
 
-> **Status: Phase 0.** The running implementation is the Python prototype
-> in `legacy/`. The Go port (`internal/`) with a single-binary release is
-> in progress — see [Roadmap](#roadmap).
+> **Status: Phase 1.** The Go port is the primary implementation (single
+> binary). The Python prototype stays in `legacy/` until parity is proven
+> in the field — see [Roadmap](#roadmap).
 
-Prerequisites: one or more agent CLIs installed and authenticated, plus
-Python 3.11+.
+Prerequisites: one or more agent CLIs installed and authenticated, Go 1.22+
+and Node 22+ to build from source.
 
 ```bash
 git clone https://github.com/cfpperche/agentdeck
 cd agentdeck
+make build        # web UI + single binary → bin/agentdeck
 
-# build the web UI once
-cd web && npm install && npm run build && cd ..
+./bin/agentdeck   # HTTPS on :8444 (self-signed cert auto-generated)
+```
 
-# run the server (HTTPS on :8444)
+<details>
+<summary>Python prototype (legacy)</summary>
+
+```bash
 python3 -m legacy.backend.__main__
 ```
+</details>
 
 Open `https://localhost:8444`, accept the self-signed certificate, pick an
 agent, send a task.
@@ -112,8 +117,8 @@ docs/                    # SECURITY, ADRs, screenshots
 ## Roadmap
 
 - [x] **Phase 0** — prototype validated end-to-end; repo, docs, ADRs, CI
-- [ ] **Phase 1** — Go port with TDD (fake agents as test doubles),
-  single binary embedding the web UI (`go:embed`)
+- [x] **Phase 1** — Go port with TDD (fake agents as test doubles),
+  single binary embedding the web UI (`go:embed`), native self-signed TLS
 - [ ] **Phase 2** — execution-mode feature flags, install script,
   Homebrew tap, versioned releases with checksums
 - [ ] **Phase 3** — hardening: token auth, rate limiting, zombie-process
