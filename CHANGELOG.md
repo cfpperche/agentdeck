@@ -7,6 +7,12 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- `scripts/setup-cert.sh`: environment-aware TLS provisioning — installs
+  mkcert if missing, discovers SANs (localhost/LAN/tailscale, IPv6 and
+  docker bridges filtered), issues the server cert, imports the CA into
+  the Windows trust store from WSL (UAC, idempotent), restarts the
+  service; `--ios` serves the CA on the tailnet with a QR code.
+  CI now syntax-checks shell scripts.
 - **URL-routed sessions** (G4, issue #4): sessions live at `/s/<id>` —
   back/forward and reload work; legacy `?s=` deep-links normalize in
   place. (History API; the Go SPA fallback serves the app on any path.)

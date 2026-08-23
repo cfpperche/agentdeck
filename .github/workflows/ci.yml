@@ -40,6 +40,8 @@ jobs:
         run: |
           npm ci
           npm run build
+      - name: Shell scripts
+        run: bash -n scripts/*.sh
       - run: go vet ./...
       - run: go test ./...
       - run: go build -o bin/agentdeck .

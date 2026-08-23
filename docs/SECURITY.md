@@ -43,9 +43,18 @@ Please do not open public issues for vulnerabilities.
 
 ## Local TLS with mkcert (recommended for daily use)
 
-The server self-signs a cert covering localhost + local IPs, but
-browsers show "Not secure" until the issuer is trusted. For warning-free
-daily use, issue from a local CA with [mkcert](https://github.com/FiloSottile/mkcert):
+**One command does everything (environment-aware, idempotent):**
+
+```bash
+scripts/setup-cert.sh        # add --ios to serve the CA on your tailnet with a QR
+```
+
+It installs mkcert if missing, discovers this machine's names/IPs
+(localhost, LAN, tailscale), issues `data/cert.pem`/`data/key.pem`,
+imports the CA into the Windows trust store when running under WSL
+(one UAC prompt), and restarts the service.
+
+Manual equivalent (what the script automates):
 
 ```bash
 # once per machine: install the CA (Linux side)
