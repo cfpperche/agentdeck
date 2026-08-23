@@ -26,6 +26,15 @@ var adapterSpecs = []spec{
 				}
 				return argv
 			},
+			BuildLive: func(ref, cwd string) []string {
+				argv := []string{p, "-p", "--input-format", "stream-json",
+					"--output-format", "stream-json", "--verbose",
+					"--add-dir", homeDir()}
+				if ref != "" {
+					argv = append(argv, "--resume", ref)
+				}
+				return argv
+			},
 			Parse: parseClaude,
 		}
 	}},
@@ -142,6 +151,26 @@ func parseClaude(line string) []Event {
 			}
 			out = append(out, Event{Kind: KindError, Content: msg})
 		}
+	case "control_request":
+		// agent asks the user (e.g. tool permission) — ADR-0004
+		reqID, _ := ev["request_id"].(string)
+		if reqID == "" {
+			reqID, _ = ev["id"].(string)
+		}
+		tool, _ := ev["tool_name"].(string)
+		if tool == "" {
+			tool = "tool"
+		}
+		input, _ := json.Marshal(ev["input"])
+		if string(input) == "null" {
+			if alt, ok := ev["tool"].(string); ok {
+				input = []byte(alt)
+			} else {
+				input = []byte("{}")
+			}
+		}
+		out = append(out, Event{Kind: KindControl, Ref: reqID, Name: tool,
+			Detail: trunc(string(input), 300)})
 	}
 	return out
 }

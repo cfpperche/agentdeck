@@ -80,6 +80,13 @@ export function App() {
       .catch((e) => showToast(e.detail || "failed to send"));
   };
 
+  const answerPermission = (behavior) => {
+    if (!permission) return;
+    api.control(activeId, permission.request_id, behavior)
+      .then(() => setPermission(null))
+      .catch((e) => showToast(e.detail || "failed to answer"));
+  };
+
   return (
     <div class="flex h-full overflow-hidden">
       <Sidebar
@@ -169,6 +176,28 @@ export function App() {
           </button>
         )}
 
+        {permission && (
+          <div class="px-3 md:px-6 pt-3 max-w-3xl mx-auto w-full">
+            <div class="rounded-xl border px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
+              style={{ background: "rgba(217,119,55,0.08)", borderColor: "rgba(217,119,55,0.35)" }}>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-amber-300/90 flex items-center gap-2">
+                  <span class="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                  {permission.tool} permission requested
+                </div>
+                <code class="block mt-1 text-[12px] text-zinc-400 font-mono truncate">{permission.input}</code>
+              </div>
+              <div class="flex gap-2 shrink-0">
+                <button onClick={() => answerPermission("allow")}
+                  class="h-9 px-4 rounded-lg text-sm font-medium text-white transition-colors hover:brightness-110"
+                  style={{ background: "#2c8a4b" }}>Allow</button>
+                <button onClick={() => answerPermission("deny")}
+                  class="h-9 px-4 rounded-lg text-sm font-medium border transition-colors hover:bg-red-950/40"
+                  style={{ borderColor: "#7f1d1d", color: "#fca5a5" }}>Deny</button>
+              </div>
+            </div>
+          </div>
+        )}
         {active && (
           <Composer running={running} onSend={send} onStop={() => api.stop(activeId).then(refreshSessions)} />
         )}

@@ -65,13 +65,17 @@ the SQLite schema — it stays until parity is proven in the field.
 4. **Preview sanitization**: banners (ANSI art, box drawing) must never
    reach the sidebar. `store.CleanPreview` + tests own this.
 
-## Next steps (Phase 2 — not started)
+## Next steps (Phase 2 — in progress)
 
-- [ ] **Runner v2 (ADR-0004, tier 1)**: long-lived claude/pi processes
-      with stdin/stdout JSONL; messages via stdin; SSE unchanged;
-      restart-with-ref on process death; validate the permission
-      control-request handshake per agent (blocked from spiking by
-      `bypassPermissions` in local settings — test with a clean config)
+- [x] **Runner v2 tier 1 (claude)** — live processes with in-process
+      memory, permission Allow/Deny round-trip, crash restart-with-ref;
+      E2E-proven through the binary (two turns, one process, "secret
+      is 777" recalled; ref `fake-live-session-42` captured).
+- [ ] Validate the permission control-request handshake against the
+      REAL claude CLI (fake implements the documented shape; local
+      `bypassPermissions` blocked live spiking — needs a clean config)
+- [ ] Runner v2 tier 1 for pi (`--mode rpc` — different protocol,
+      adapter + parser to be written)
 - [ ] Tier 2 ports: codex `app-server`, grok/opencode `serve`+`attach`
 - [ ] `install.sh` (curl | sh) + Homebrew tap
 - [ ] Tagged releases with SHA256SUMS (adapt the workflow from

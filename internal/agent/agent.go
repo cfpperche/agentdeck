@@ -12,11 +12,12 @@ import (
 
 // Event kinds emitted by parsers, normalized across agents.
 const (
-	KindRef   = "ref"   // native session reference captured
-	KindText  = "text"  // assistant text chunk
-	KindTool  = "tool"  // tool call lifecycle
-	KindFinal = "final" // authoritative final text
-	KindError = "error"
+	KindRef     = "ref"     // native session reference captured
+	KindText    = "text"    // assistant text chunk
+	KindTool    = "tool"    // tool call lifecycle
+	KindFinal   = "final"   // authoritative final text (turn end)
+	KindError   = "error"
+	KindControl = "control" // agent asks the user (permission request)
 )
 
 // Event is the normalized stream unit. Kind discriminates the payload.
@@ -34,7 +35,7 @@ type Adapter struct {
 	ID    string
 	Label string
 	Color string
-	// Build returns the argv to run the agent headless.
+	// Build returns the argv to run the agent headless (one-shot).
 	//   text       user message
 	//   ref        native session reference ("" on first turn)
 	//   cwd        per-session working directory
@@ -43,6 +44,10 @@ type Adapter struct {
 	Build func(text, ref, cwd string, hasHistory bool) []string
 	// Parse converts one stdout JSONL line into zero or more events.
 	Parse func(line string) []Event
+	// BuildLive, when non-nil, marks a tier-1 agent (ADR-0004): argv for
+	// a PERSISTENT bidirectional process (stdin/stdout JSONL). ref resumes
+	// the native session after a crash/restart.
+	BuildLive func(ref, cwd string) []string
 }
 
 // Registry holds discovered agents, preserving stable order.
@@ -94,6 +99,15 @@ func NewRegistry(which Which) *Registry {
 func (r *Registry) Get(id string) (Adapter, bool) {
 	a, ok := r.m[id]
 	return a, ok
+}
+
+// DisableLive strips the live tier from an adapter (forces one-shot
+// fallback). Used by tests and available for configuration.
+func (r *Registry) DisableLive(id string) {
+	if a, ok := r.m[id]; ok {
+		a.BuildLive = nil
+		r.m[id] = a
+	}
 }
 
 // List returns adapters in registry order, for the UI.

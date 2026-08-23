@@ -15,6 +15,10 @@ import (
 // override mechanism (AGENTDECK_BIN_*) used in production.
 
 func newTestRunner(t *testing.T, fakeEnv map[string]string) (*Runner, *store.Store) {
+	return newTestRunnerMode(t, fakeEnv, false) // one-shot fallback tier
+}
+
+func newTestRunnerMode(t *testing.T, fakeEnv map[string]string, live bool) (*Runner, *store.Store) {
 	t.Helper()
 	for k, v := range fakeEnv {
 		t.Setenv(k, v)
@@ -38,6 +42,10 @@ func newTestRunner(t *testing.T, fakeEnv map[string]string) (*Runner, *store.Sto
 	reg := agent.NewRegistry(agent.EnvWhich(nil))
 	if _, ok := reg.Get("claude"); !ok {
 		t.Fatal("fake claude not registered")
+	}
+	if !live {
+		// strip the live tier: these tests exercise the one-shot fallback
+		reg.DisableLive("claude")
 	}
 	return New(reg, st, filepath.Join(dataDir, "workspaces")), st
 }

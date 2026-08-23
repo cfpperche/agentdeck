@@ -98,7 +98,7 @@ func TestAPIContract(t *testing.T) {
 
 	msgs := listMessages(t, ts, ss.ID)
 	if msgs[0].Role != "user" || msgs[1].Role != "assistant" ||
-		msgs[1].Content != "Ran echo hello" {
+		msgs[1].Content != "echo: run the thing" { // live tier echoes (ADR-0004)
 		t.Fatalf("messages = %+v %+v", msgs[0], msgs[1])
 	}
 
@@ -107,7 +107,7 @@ func TestAPIContract(t *testing.T) {
 	if sessions[0].Title != "run the thing" {
 		t.Errorf("title = %q", sessions[0].Title)
 	}
-	if sessions[0].Preview != "Ran echo hello" {
+	if sessions[0].Preview != "echo: run the thing" {
 		t.Errorf("preview = %q", sessions[0].Preview)
 	}
 

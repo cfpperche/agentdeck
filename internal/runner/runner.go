@@ -25,13 +25,16 @@ var ErrBusy = errors.New("agent already running for this session")
 // StreamEvent is the client-facing event (SSE payload shape, parity with
 // the Phase-0 server).
 type StreamEvent struct {
-	Type    string         `json:"type"` // state | text | tool | message_end
-	Running bool           `json:"running"`
-	Content string         `json:"content,omitempty"`
-	Name    string         `json:"name,omitempty"`
-	State   string         `json:"state,omitempty"`
-	Detail  string         `json:"detail,omitempty"`
-	Message *store.Message `json:"message,omitempty"`
+	Type      string         `json:"type"` // state | text | tool | message_end | permission
+	Running   bool           `json:"running"`
+	Content   string         `json:"content,omitempty"`
+	Name      string         `json:"name,omitempty"`
+	State     string         `json:"state,omitempty"`
+	Detail    string         `json:"detail,omitempty"`
+	Message   *store.Message `json:"message,omitempty"`
+	RequestID string         `json:"request_id,omitempty"` // permission events (ADR-0004)
+	Tool      string         `json:"tool,omitempty"`
+	Input     string         `json:"input,omitempty"`
 }
 
 const taskTimeout = 10 * time.Minute
@@ -43,6 +46,7 @@ type Runner struct {
 
 	mu      sync.Mutex
 	running map[string]context.CancelFunc
+	live    map[string]*liveProc
 	subs    map[string]map[chan StreamEvent]struct{}
 }
 
@@ -51,6 +55,7 @@ func New(reg *agent.Registry, st *store.Store, workspaces string) *Runner {
 	return &Runner{
 		Registry: reg, Store: st, Workspaces: workspaces,
 		running: map[string]context.CancelFunc{},
+		live:    map[string]*liveProc{},
 		subs:    map[string]map[chan StreamEvent]struct{}{},
 	}
 }
@@ -127,6 +132,20 @@ func (r *Runner) Send(sid, text string) error {
 		if title != "" {
 			r.Store.RenameSession(sid, title)
 		}
+	}
+
+	// tier-1 (ADR-0004): persistent bidirectional process — no spawn
+	if adapter.BuildLive != nil {
+		cancel() // one-shot ctx not used on this path
+		r.clearRunning(sid)
+		if err := r.sendLive(sid, adapter, text); err != nil {
+			return err
+		}
+		r.mu.Lock()
+		r.running[sid] = func() {} // busy marker until turn ends (finish)
+		r.mu.Unlock()
+		r.broadcast(sid, StreamEvent{Type: "state", Running: true})
+		return nil
 	}
 
 	cwd := filepath.Join(r.Workspaces, sid)
@@ -247,6 +266,7 @@ func (r *Runner) finish(sid, content string, tools []map[string]any, errMsg stri
 	if err != nil {
 		msg = &store.Message{Role: "assistant", Content: content, Meta: meta}
 	}
+	r.clearRunning(sid) // free the busy marker (live turns end here)
 	r.broadcast(sid, StreamEvent{Type: "message_end", Message: msg})
 	r.broadcast(sid, StreamEvent{Type: "state", Running: false})
 }

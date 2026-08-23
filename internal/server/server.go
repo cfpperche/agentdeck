@@ -33,6 +33,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("DELETE /api/sessions/{id}", s.handleDeleteSession)
 	mux.HandleFunc("GET /api/sessions/{id}/messages", s.handleMessages)
 	mux.HandleFunc("POST /api/sessions/{id}/messages", s.handleSend)
+	mux.HandleFunc("POST /api/sessions/{id}/control", s.handleControl)
 	mux.HandleFunc("POST /api/sessions/{id}/stop", s.handleStop)
 	mux.HandleFunc("GET /api/sessions/{id}/events", s.handleEvents)
 
@@ -189,6 +190,24 @@ func (s *Server) handleSend(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleStop(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": s.Runner.Stop(r.PathValue("id"))})
+}
+
+// handleControl answers a permission request on a live session (ADR-0004):
+// {"request_id": "...", "behavior": "allow"|"deny"}
+func (s *Server) handleControl(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		RequestID string `json:"request_id"`
+		Behavior  string `json:"behavior"`
+	}
+	if err := readBody(r, &in); err != nil || in.RequestID == "" {
+		writeErr(w, 400, "request_id required")
+		return
+	}
+	if err := s.Runner.Control(r.PathValue("id"), in.RequestID, in.Behavior); err != nil {
+		writeErr(w, 409, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 // handleEvents streams session events over SSE until the client leaves.

@@ -1,9 +1,26 @@
 #!/usr/bin/env bash
-# fake-claude — test double for the Claude adapter: emits the same
-# stream-json shapes the real CLI emits (calibrated lines).
-# Behavior knobs via env:
-#   FAKE_SLEEP=seconds   stall before output (test busy/stop paths)
+# fake-claude — test double for the Claude adapter.
+#
+# Two modes:
+#   1. ONE-shot (legacy spawn-per-message): emits the recorded JSONL
+#      and exits. Used when no stdin input protocol is offered.
+#   2. PERSISTENT bidirectional (runner v2 / ADR-0004): when invoked as
+#      'fake-claude live', reads user messages from stdin as JSONL
+#      ({"type":"user","message":{"content":[{"text":...}]}}) and answers
+#      each one, keeping in-process memory — same wire contract as
+#      'claude -p --input-format stream-json'.
+#
+# Env knobs (one-shot mode):
+#   FAKE_SLEEP=seconds   stall before output (busy/stop tests)
 #   FAKE_FAIL=1          exit non-zero with stderr noise
+# Persistent mode extras:
+#   FAKE_ASK=1           emit a control_request before the first tool use
+#   FAKE_CRASH_AFTER=N   exit abruptly after N turns (restart-with-ref test)
+
+if [[ "$*" == *--input-format* ]]; then
+  exec python3 "$(dirname "$0")/fake-claude-live.py"
+fi
+
 cat <<'EOF'
 {"type":"system","subtype":"init","session_id":"fake-session-001","model":"fake"}
 {"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"echo hello"}}]}}
