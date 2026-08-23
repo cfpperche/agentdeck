@@ -1,0 +1,20 @@
+# node / web
+node_modules/
+web/dist/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# runtime data (sessions db, workspaces, certs, logs)
+data/
+*.log
+cert.pem
+key.pem
+
+# os / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
