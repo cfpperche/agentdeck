@@ -23,6 +23,17 @@ the SQLite schema — it stays until parity is proven in the field.
 
 ## Verified facts (do not re-derive)
 
+- **Claude permissions only via SDK (ADR-0005)**: bare `-p` makes
+  "ask" decisions terminal (auto-deny). The Agent SDK's `canUseTool`
+  callback receives real permission requests; `permissionMode:
+  "manual"` makes every tool call ask (validated live with the Write
+  tool). Valid modes: acceptEdits, auto, bypassPermissions, manual,
+  dontAsk, plan — there is NO "ask" mode. The SDK injects
+  `--permission-prompt-tool stdio` when canUseTool is set.
+- **`manual` nuance**: safe-listed commands (e.g. plain `echo` in
+  Bash) may still auto-pass — use genuinely sensitive tools (Write,
+  rm, curl) when validating permission flows.
+
 - **Pivot decided (ADR-0004)**: persistent protocol sessions, no tmux.
   Spike proof (`tests/spikes/claude-interactive-spike.py`): a living
   `claude -p --input-format stream-json` process holds conversation

@@ -12,10 +12,10 @@ import (
 
 // Event kinds emitted by parsers, normalized across agents.
 const (
-	KindRef     = "ref"     // native session reference captured
-	KindText    = "text"    // assistant text chunk
-	KindTool    = "tool"    // tool call lifecycle
-	KindFinal   = "final"   // authoritative final text (turn end)
+	KindRef     = "ref"   // native session reference captured
+	KindText    = "text"  // assistant text chunk
+	KindTool    = "tool"  // tool call lifecycle
+	KindFinal   = "final" // authoritative final text (turn end)
 	KindError   = "error"
 	KindControl = "control" // agent asks the user (permission request)
 )

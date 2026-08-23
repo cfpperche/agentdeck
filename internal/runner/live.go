@@ -73,6 +73,13 @@ func (r *Runner) ensureLive(sid string, adapter agent.Adapter) (*liveProc, error
 	cmd := exec.CommandContext(context.Background(), argv[0], argv[1:]...)
 	cmd.Dir = cwd
 	cmd.Env = append(os.Environ(), "NO_COLOR=1")
+	// SDK shim (ADR-0005): pass the native ref so a restarted shim resumes
+	if ss.AgentRef != "" && argv[0] == "node" {
+		cmd.Env = append(cmd.Env, "AGENTDECK_SDK_RESUME="+ss.AgentRef)
+	}
+	if pm := os.Getenv("AGENTDECK_SDK_PERMISSION_MODE"); pm != "" {
+		cmd.Env = append(cmd.Env, "AGENTDECK_SDK_PERMISSION_MODE="+pm)
+	}
 	// process group (war story #1 in HANDOFF): kill children too
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error {

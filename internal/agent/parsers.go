@@ -26,16 +26,8 @@ var adapterSpecs = []spec{
 				}
 				return argv
 			},
-			BuildLive: func(ref, cwd string) []string {
-				argv := []string{p, "-p", "--input-format", "stream-json",
-					"--output-format", "stream-json", "--verbose",
-					"--add-dir", homeDir()}
-				if ref != "" {
-					argv = append(argv, "--resume", ref)
-				}
-				return argv
-			},
-			Parse: parseClaude,
+			BuildLive: buildClaudeLive(p),
+			Parse:     parseClaude,
 		}
 	}},
 	{"codex", func(p string) Adapter {

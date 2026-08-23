@@ -71,10 +71,10 @@ type Runner struct {
 
 	mu      sync.Mutex
 	running map[string]context.CancelFunc // fallback cancels + live busy marker
-	live    map[string]*liveProc         // persistent tier-1 processes (ADR-0004)
+	live    map[string]*liveProc          // persistent tier-1 processes (ADR-0004)
 	state   map[string]SessionStatus
-	pending map[string]StreamEvent   // latest unanswered permission per session
-	queues  map[string][]string      // messages waiting for the current turn
+	pending map[string]StreamEvent // latest unanswered permission per session
+	queues  map[string][]string    // messages waiting for the current turn
 	subs    map[string]map[chan StreamEvent]struct{}
 }
 

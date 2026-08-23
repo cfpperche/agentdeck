@@ -7,6 +7,17 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Claude driver via Agent SDK** (ADR-0005, issue #5): a vendored
+  Node shim (`agent-sdk-shim/`) drives the real claude through
+  `@anthropic-ai/claude-agent-sdk` while speaking AgentDeck's existing
+  wire protocol — unlocking REAL permission round-trips the CLI's bare
+  `-p` never emits (validated live: `manual` mode + canUseTool →
+  permission arrives as a control_request with tool+input → allow →
+  executed). The Go adapter auto-detects the shim (node + package) and
+  falls back to CLI stdio otherwise; restart passes the SDK session ref.
+  Deterministic contract tests via a fake SDK (memory across turns,
+  deny, allow) — zero tokens in CI; live validation recorded in
+  `tests/spikes/`.
 - **Settings route** (`/settings`, deep-linkable, back-button safe):
   Appearance section with System / Dark / Light theme cards (instant
   apply, current resolved theme shown on System) + About section with
