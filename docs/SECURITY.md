@@ -40,3 +40,31 @@ can act on your machine.
 Open a private security advisory
 (GitHub → *Security* → *Report a vulnerability*) or email the maintainer.
 Please do not open public issues for vulnerabilities.
+
+## Local TLS with mkcert (recommended for daily use)
+
+The server self-signs a cert covering localhost + local IPs, but
+browsers show "Not secure" until the issuer is trusted. For warning-free
+daily use, issue from a local CA with [mkcert](https://github.com/FiloSottile/mkcert):
+
+```bash
+# once per machine: install the CA (Linux side)
+mkcert -install
+
+# issue the server cert (AgentDeck reads data/cert.pem + data/key.pem)
+cd agentdeck
+mkcert -cert-file data/cert.pem -key-file data/key.pem \
+  localhost 100.87.149.83 192.168.15.110   # your local + tailnet IPs
+
+systemctl --user restart agentdeck
+```
+
+Windows browsers must trust the CA too — as Administrator:
+
+```powershell
+Import-Certificate -FilePath "$env:USERPROFILE\mkcert-rootCA.pem" -CertStoreLocation Cert:\LocalMachine\Root
+```
+
+(the `mkcert-rootCA.pem` is `$(mkcert -CAROOT)/rootCA.pem`; iOS: Settings
+→ Profile Downloaded → Install, then enable full trust in
+Settings → General → About → Certificate Trust Settings).
