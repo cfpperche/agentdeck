@@ -12,6 +12,7 @@ export function App() {
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState("idle"); // idle | running | waiting
   const [queuedCount, setQueuedCount] = useState(0);
+  const [permission, setPermission] = useState(null); // pending approval (ADR-0004)
   const [filter, setFilter] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toast, setToast] = useState(null);
@@ -67,6 +68,9 @@ export function App() {
         setStatus(ev.status || (ev.running ? "running" : "idle"));
       }
       else if (ev.type === "queue") setQueuedCount(ev.count || 0);
+      else if (ev.type === "permission") {
+        setPermission({ request_id: ev.request_id, tool: ev.tool, input: ev.input });
+      }
       else if (ev.type === "text")
         setStream((s) => ({ text: (s?.text || "") + ev.content, tools: s?.tools || [] }));
       else if (ev.type === "tool")

@@ -75,6 +75,15 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
   (see `AGENTS.md`).
 
 ### Fixed
+- Web app crashed on load (`permission is not defined`) — state and
+  SSE handler for the approval banner were lost in an edit chain;
+  restored. Root-cause amplifier: a stale agentdeck process (old
+  build + old cert) was holding :8444 while the service ran elsewhere,
+  serving a broken embedded UI.
+- AgentDeck now ships a **systemd user unit** (`~/.config/systemd/user/
+  agentdeck.service`): single supervised process, restart-on-failure,
+  survives shell exit and reboots. (Manual: `systemctl --user start
+  agentdeck`; logs: `journalctl --user -u agentdeck -f`.)
 - Runner: killing an agent now kills its **process group** — children
   inheriting the output pipe kept the scanner blocked after stop
   (caught by CI, `TestStopPersistsPartial`).
