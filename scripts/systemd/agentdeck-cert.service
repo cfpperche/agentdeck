@@ -1,0 +1,7 @@
+[Unit]
+Description=AgentDeck — TLS certificate renewal (mkcert)
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/agentdeck
+ExecStart=%h/agentdeck/scripts/setup-cert.sh --check 30

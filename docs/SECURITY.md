@@ -54,6 +54,19 @@ It installs mkcert if missing, discovers this machine's names/IPs
 imports the CA into the Windows trust store when running under WSL
 (one UAC prompt), and restarts the service.
 
+### Automatic renewal
+
+Leaf certs last ~27 months; the local CA (2036) keeps browsers trusting
+every re-issued leaf — renewal is fully unattended. Two layers:
+
+- **`scripts/setup-cert.sh --check <days>`** no-ops while the cert has
+  more than N days left, re-issues (and restarts) otherwise.
+- **`scripts/install-systemd.sh`** installs the user units
+  (`scripts/systemd/`): the server unit plus a weekly
+  `agentdeck-cert.timer` running `--check 30`. The binary also logs a
+  boot warning when the cert is within 30 days of expiry
+  (observability net if the timer is disabled).
+
 Manual equivalent (what the script automates):
 
 ```bash

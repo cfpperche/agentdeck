@@ -7,6 +7,11 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Automatic TLS renewal**: `setup-cert.sh --check <days>` (no-op when
+  healthy, unattended re-issuance otherwise — the trusted CA outlives
+  leafs, so no UAC/browser action is ever needed again), systemd units
+  shipped in `scripts/systemd/` with `install-systemd.sh` (server unit +
+  weekly renewal timer), and a boot-time expiry warning in the binary.
 - `scripts/setup-cert.sh`: environment-aware TLS provisioning — installs
   mkcert if missing, discovers SANs (localhost/LAN/tailscale, IPv6 and
   docker bridges filtered), issues the server cert, imports the CA into

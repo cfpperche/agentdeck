@@ -28,7 +28,20 @@ warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
 die()  { printf '  \033[31m✗\033[0m %s\n' "$*" >&2; exit 1; }
 
 IOS_MODE=0
+CHECK_DAYS=0
+if [[ "${1:-}" == "--check" ]]; then
+    [[ "${2:-}" =~ ^[0-9]+$ ]] || { echo "usage: setup-cert.sh [--check <days>] [--ios]" >&2; exit 1; }
+    CHECK_DAYS=$2; shift 2
+fi
 [[ "${1:-}" == "--ios" ]] && IOS_MODE=1
+
+# Early exit: certificate healthy and far from expiry? Nothing to do.
+if [[ $CHECK_DAYS -gt 0 && -f "$ROOT/data/cert.pem" ]]; then
+    if openssl x509 -checkend $((CHECK_DAYS * 86400)) -noout -in "$ROOT/data/cert.pem" 2>/dev/null; then
+        ok "certificate valid for more than $CHECK_DAYS days — nothing to do"
+        exit 0
+    fi
+fi
 
 # Windows PowerShell via full path (WSL interop PATH may be disabled)
 PWSH=""
@@ -172,3 +185,4 @@ EOF
 fi
 
 bold "done — https://${SAN[0]}:8444 (also: ${SAN[*]:1})"
+[[ $CHECK_DAYS -gt 0 ]] && ok "renewed via --check (valid ~27 months; the timer keeps it fresh forever)"

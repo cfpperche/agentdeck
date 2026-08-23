@@ -68,6 +68,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("tls: %v", err)
 		}
+		warnIfCertExpiring(cfg.DataDir, 30*24*time.Hour)
 		httpSrv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
 		log.Fatal(httpSrv.ListenAndServeTLS("", ""))
 	}
@@ -96,6 +97,27 @@ func withWebUI(api http.Handler) http.Handler {
 		}
 		fileServer.ServeHTTP(w, r)
 	})
+}
+
+// warnIfCertExpiring logs loudly when the leaf cert is close to expiry
+// (the weekly systemd timer renews; this is the observability net).
+func warnIfCertExpiring(dataDir string, within time.Duration) {
+	b, err := os.ReadFile(filepath.Join(dataDir, "cert.pem"))
+	if err != nil {
+		return
+	}
+	block, _ := pem.Decode(b)
+	if block == nil {
+		return
+	}
+	crt, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return
+	}
+	if time.Until(crt.NotAfter) < within {
+		log.Printf("WARNING: TLS certificate expires in %.0f days (%s) — run scripts/setup-cert.sh",
+			time.Until(crt.NotAfter).Hours()/24, crt.NotAfter.Format("2006-01-02"))
+	}
 }
 
 // ensureCert loads or creates a self-signed certificate in the data dir.
