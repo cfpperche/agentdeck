@@ -2,8 +2,10 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { api, openEvents } from "./api.js";
 import { Sidebar, Message, Composer, Logo } from "./components.jsx";
 import { AgentIcon } from "./icons.jsx";
+import { useTheme } from "./theme.js";
 
 export function App() {
+  const theme = useTheme();
   const [agents, setAgents] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [activeId, setActiveId] = useState(null);
@@ -135,6 +137,7 @@ export function App() {
         onRename={(id, t) => api.renameSession(id, t).then(refreshSessions)}
         onDelete={(id) => api.deleteSession(id).then(() => { if (id === activeId) setActiveId(null); refreshSessions(); })}
         open={sidebarOpen} setOpen={setSidebarOpen}
+        theme={theme.current} onToggleTheme={theme.toggle}
       />
 
       <main class="flex-1 flex flex-col min-w-0 relative" style={{ background: "var(--bg-canvas)" }}>
@@ -149,31 +152,31 @@ export function App() {
           {active ? (
             <>
               <AgentIcon id={active.agent} size={16} color={agentMeta?.color || "#888"} />
-              <h1 class="font-medium text-zinc-200 truncate text-[15px]">{active.title || "untitled"}</h1>
-              <span class="text-xs text-zinc-500 shrink-0 hidden sm:inline">{agentMeta?.label || active.agent}</span>
+              <h1 class="font-medium truncate text-[15px]" style={{ color: "var(--text-1)" }}>{active.title || "untitled"}</h1>
+              <span class="text-xs shrink-0 hidden sm:inline" style={{ color: "var(--text-3)" }}>{agentMeta?.label || active.agent}</span>
             </>
           ) : (
-            <span class="flex items-center gap-2 md:hidden text-zinc-300 text-sm font-medium"><Logo size={17} /> AgentDeck</span>
+            <span class="flex items-center gap-2 md:hidden text-sm font-medium" style={{ color: "var(--text-1)" }}><Logo size={17} /> AgentDeck</span>
           )}
           <div class="ml-auto flex items-center gap-2 shrink-0">
             {queuedCount > 0 && active && (
               <button
                 onClick={() => api.clearQueue(activeId).then(() => setQueuedCount(0))}
-                class="text-[11px] text-sky-300/90 hover:text-sky-200"
+                class="text-[11px]" style={{ color: "var(--accent-fg)" }}
                 title="cancel queued messages"
               >
                 {queuedCount} queued · cancel
               </button>
             )}
             {status === "waiting" && (
-              <span class="flex items-center gap-1.5 text-xs text-amber-400">
-                <span class="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <span class="flex items-center gap-1.5 text-xs" style={{ color: "var(--warn)" }}>
+                <span class="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--warn)" }} />
                 waiting
               </span>
             )}
             {status === "running" && (
-              <span class="flex items-center gap-1.5 text-xs text-emerald-400">
-                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span class="flex items-center gap-1.5 text-xs" style={{ color: "var(--ok)" }}>
+                <span class="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--ok)" }} />
                 running
               </span>
             )}
@@ -187,8 +190,8 @@ export function App() {
           ) : (
             <div class="max-w-3xl mx-auto w-full px-4 md:px-6 py-6">
               {messages.length === 0 && !stream && (
-                <div class="text-center mt-20 text-sm text-zinc-500">
-                  send the first message to <span class="text-zinc-300">{agentMeta?.label}</span>
+                <div class="text-center mt-20 text-sm" style={{ color: "var(--text-3)" }}>
+                  send the first message to <span style={{ color: "var(--text-1)" }}>{agentMeta?.label}</span>
                 </div>
               )}
               {messages.map((m) => <Message key={m.id || m.created_at} m={m} />)}
@@ -198,9 +201,9 @@ export function App() {
                   <div class="max-w-[90%] md:max-w-[75%] rounded-2xl rounded-bl-md px-4 py-3"
                     style={{ background: "var(--bg-card)", border: "1px solid var(--border-soft)" }}>
                     {stream.text ? (
-                      <div class="md caret text-[15px] leading-relaxed whitespace-pre-wrap text-zinc-200">{stream.text}</div>
+                      <div class="md caret text-[15px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-1)" }}>{stream.text}</div>
                     ) : (
-                      <span class="text-sm text-zinc-500 flex items-center gap-2">
+                      <span class="text-sm flex items-center gap-2" style={{ color: "var(--text-3)" }}>
                         <Dots /> {agentMeta?.label || "agent"} working…
                       </span>
                     )}
@@ -210,7 +213,8 @@ export function App() {
               {stream?.tools?.length > 0 && (
                 <div class="flex flex-wrap gap-1.5 -mt-3 mb-5">
                   {stream.tools.slice(-6).map((t, i) => (
-                    <span key={i} class={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-mono ${t.state === "end" ? "text-zinc-400" : "text-amber-400/90 animate-pulse"}`}
+                    <span key={i} class={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-mono ${t.state === "end" ? "" : "animate-pulse"}`}
+                      style={{ border: "1px solid var(--border)", color: t.state === "end" ? "var(--text-3)" : "var(--warn)" }}
                       style={{ border: "1px solid var(--border)" }}>
                       {t.state === "end" ? "✓" : "⟳"} {t.name}
                     </span>
@@ -224,7 +228,7 @@ export function App() {
         {!atBottom && messages.length > 0 && (
           <button
             onClick={() => { setAtBottom(true); listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }); }}
-            class="absolute bottom-28 right-5 z-10 h-10 w-10 grid place-items-center rounded-full text-zinc-300 shadow-xl surface"
+            class="absolute bottom-28 right-5 z-10 h-10 w-10 grid place-items-center rounded-full shadow-xl surface" style={{ color: "var(--text-2)" }}
             style={{ background: "var(--bg-raised)", border: "1px solid var(--border)" }}
             aria-label="jump to bottom"
           >
@@ -235,21 +239,21 @@ export function App() {
         {permission && (
           <div class="px-3 md:px-6 pt-3 max-w-3xl mx-auto w-full">
             <div class="rounded-xl border px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
-              style={{ background: "rgba(217,119,55,0.08)", borderColor: "rgba(217,119,55,0.35)" }}>
+              style={{ background: "var(--warn-soft)", borderColor: "var(--warn-border)" }}>
               <div class="flex-1 min-w-0">
-                <div class="text-sm font-medium text-amber-300/90 flex items-center gap-2">
-                  <span class="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                <div class="text-sm font-medium flex items-center gap-2" style={{ color: "var(--warn)" }}>
+                  <span class="h-2 w-2 rounded-full animate-pulse" style={{ background: "var(--warn)" }} />
                   {permission.tool} permission requested
                 </div>
-                <code class="block mt-1 text-[12px] text-zinc-400 font-mono truncate">{permission.input}</code>
+                <code class="block mt-1 text-[12px] font-mono truncate" style={{ color: "var(--text-3)" }}>{permission.input}</code>
               </div>
               <div class="flex gap-2 shrink-0">
                 <button onClick={() => answerPermission("allow")}
-                  class="h-9 px-4 rounded-lg text-sm font-medium text-white transition-colors hover:brightness-110"
-                  style={{ background: "#2c8a4b" }}>Allow</button>
+                  class="h-9 px-4 rounded-lg text-sm font-medium transition-colors"
+                  style={{ background: "var(--ok)", color: "#fff" }}>Allow</button>
                 <button onClick={() => answerPermission("deny")}
-                  class="h-9 px-4 rounded-lg text-sm font-medium border transition-colors hover:bg-red-950/40"
-                  style={{ borderColor: "#7f1d1d", color: "#fca5a5" }}>Deny</button>
+                  class="h-9 px-4 rounded-lg text-sm font-medium border transition-colors"
+                  style={{ borderColor: "var(--err-border)", color: "var(--err)" }}>Deny</button>
               </div>
             </div>
           </div>
@@ -261,7 +265,7 @@ export function App() {
 
       {toast && (
         <div class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-lg px-4 py-2.5 text-sm shadow-xl surface"
-          style={{ background: "#2a1215", border: "1px solid #7f1d1d", color: "#fca5a5" }}>
+          style={{ background: "var(--err-soft)", border: "1px solid var(--err-border)", color: "var(--err)" }}>
           {toast}
         </div>
       )}
@@ -273,7 +277,7 @@ function Dots() {
   return (
     <span class="inline-flex gap-1">
       {[0, 1, 2].map((i) => (
-        <span class="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+        <span class="h-1.5 w-1.5 rounded-full animate-bounce" style={{ background: "var(--text-3)" }} style={{ animationDelay: `${i * 150}ms` }} />
       ))}
     </span>
   );
@@ -283,24 +287,24 @@ function EmptyState({ agents, onNew }) {
   return (
     <div class="h-full flex items-center justify-center px-6">
       <div class="max-w-sm w-full text-center" style={{ transform: "translateY(-4vh)" }}>
-        <h2 class="text-2xl font-semibold text-zinc-100 tracking-tight mb-2">AgentDeck</h2>
-        <p class="text-[15px] text-zinc-400 leading-relaxed balance mb-9">
+        <h2 class="text-2xl font-semibold tracking-tight mb-2" style={{ color: "var(--text-1)" }}>AgentDeck</h2>
+        <p class="text-[15px] leading-relaxed balance mb-9" style={{ color: "var(--text-2)" }}>
           Talk to your local coding agents from the browser — from anywhere.
         </p>
 
         {agents.length > 0 && (
           <>
-            <p class="text-[11px] uppercase tracking-wider text-zinc-400 mb-3">pick an agent to get started</p>
+            <p class="text-[11px] uppercase tracking-wider mb-3" style={{ color: "var(--text-3)" }}>pick an agent to get started</p>
             <div class="flex flex-wrap justify-center gap-2 max-w-[360px] mx-auto">
               {agents.map((a) => (
                 <button
                   key={a.id}
                   onClick={() => onNew(a.id)}
-                  class="flex flex-col items-center justify-center gap-2.5 h-[84px] w-[108px] rounded-xl text-sm text-zinc-300 surface hover:text-zinc-100 hover:bg-white/[0.03] active:scale-[0.97] transition-all"
+                  class="chip flex flex-col items-center justify-center gap-2.5 h-[84px] w-[108px] rounded-xl text-sm active:scale-[0.97] transition-all"
                   style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
                 >
                   <AgentIcon id={a.id} size={a.id === "pi" ? 23 : a.id === "opencode" ? 24 : 22} color={a.color} />
-                  <span class="text-[13px]">{a.label}</span>
+                  <span class="text-[13px]" style={{ color: "var(--text-2)" }}>{a.label}</span>
                 </button>
               ))}
             </div>

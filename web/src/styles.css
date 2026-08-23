@@ -1,15 +1,108 @@
 @import "tailwindcss";
 @import "highlight.js/styles/github-dark.css";
 
-:root {
-  --accent: #7c86f0;
-  --accent-strong: #626ee6;
-  --bg-canvas: #0e121a;
-  --bg-panel: #0b0e15;
-  --bg-card: #151a26;
-  --bg-raised: #1a2030;
-  --border: #232a3a;
-  --border-soft: #1b2230;
+/* ============================================================================
+   AgentDeck design tokens — "Cursor school" (see docs/benchmarks):
+   neutral zinc surfaces, inverted primary buttons, desaturated accent
+   reserved for state (selection/links/waiting), compact density,
+   real light/dark themes driven by [data-theme] on <html>.
+
+   Dark is default; light overrides below. Components consume ONLY vars
+   (no hardcoded hex past this point).
+   ============================================================================ */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-canvas: #0e0e10;
+  --bg-panel: #131316;
+  --bg-card: #17171a;
+  --bg-raised: #1f1f23;
+  --bg-hover: #ffffff08;
+  --bg-active: #ffffff0f;
+
+  --border: #ffffff14;
+  --border-soft: #ffffff0a;
+  --border-strong: #ffffff26;
+
+  --text-1: #ececee;
+  --text-2: #a8a8b0;
+  --text-3: #7b7b83;
+
+  --accent: #737ade;
+  --accent-soft: #737ade24;
+  --accent-fg: #a5abf0;
+
+  --btn-primary-bg: #ffffff;
+  --btn-primary-fg: #101012;
+  --btn-primary-hover: #e6e6e8;
+
+  --bubble-user-bg: #232327;
+  --bubble-user-border: #ffffff14;
+
+  --code-bg: #0b0b0d;
+  --code-inline-bg: #ffffff12;
+
+  --ok: #4fb56b;
+  --warn: #d8a657;
+  --warn-soft: #d8a6571f;
+  --warn-border: #d8a6574d;
+  --err: #e06c6c;
+  --err-soft: #e06c6c1a;
+  --err-border: #e06c6c4d;
+
+  --scrollbar: #ffffff1c;
+  --scrollbar-hover: #ffffff30;
+  --shadow: 0 8px 24px #00000066;
+
+  --logo-stroke: #ffffffd9;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-canvas: #ffffff;
+  --bg-panel: #f8f8f8;
+  --bg-card: #ffffff;
+  --bg-raised: #f4f4f5;
+  --bg-hover: #00000005;
+  --bg-active: #0000000c;
+
+  --border: #00000014;
+  --border-soft: #0000000a;
+  --border-strong: #00000030;
+
+  --text-1: #16161a;
+  --text-2: #52525b;
+  --text-3: #6f6f78;
+
+  --accent: #4c5ec2;
+  --accent-soft: #4c5ec21c;
+  --accent-fg: #4c5ec2;
+
+  --btn-primary-bg: #16161a;
+  --btn-primary-fg: #ffffff;
+  --btn-primary-hover: #2a2a30;
+
+  --bubble-user-bg: #ededf0;
+  --bubble-user-border: #0000000a;
+
+  --code-bg: #f6f6f8;
+  --code-inline-bg: #0000000d;
+
+  --ok: #2f9e4f;
+  --warn: #b07d2e;
+  --warn-soft: #b07d2e14;
+  --warn-border: #b07d2e45;
+  --err: #cc4f4f;
+  --err-soft: #cc4f4f12;
+  --err-border: #cc4f4f45;
+
+  --scrollbar: #0000002b;
+  --scrollbar-hover: #00000045;
+  --shadow: 0 8px 24px #0000001f;
+
+  --logo-stroke: #16161a;
 }
 
 html,
@@ -21,17 +114,20 @@ body,
 body {
   @apply text-zinc-300 antialiased;
   background: var(--bg-canvas);
+  color: var(--text-1);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
+  transition: background-color 160ms ease, color 160ms ease;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2a3140 transparent;
+  scrollbar-color: var(--scrollbar) transparent;
 }
 *::-webkit-scrollbar { width: 6px; height: 6px; }
-*::-webkit-scrollbar-thumb { background: #2a3140; border-radius: 3px; }
+*::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
 
 button { cursor: pointer; }
 
@@ -40,51 +136,56 @@ button { cursor: pointer; }
   outline-offset: 2px;
 }
 
+.surface { transition: background-color 120ms ease, border-color 120ms ease; }
+.balance { text-wrap: balance; }
+
 /* ---------------- markdown ---------------- */
-.md { @apply text-[15px] leading-relaxed; }
+.md { @apply text-[15px] leading-relaxed; color: var(--text-1); }
 .md p { @apply my-2.5; }
-.md h1, .md h2, .md h3 { @apply font-semibold text-zinc-100 mt-5 mb-2.5; }
+.md h1, .md h2, .md h3 { @apply font-semibold mt-5 mb-2.5; color: var(--text-1); }
 .md h1 { @apply text-xl; }
 .md h2 { @apply text-lg; }
 .md h3 { @apply text-base; }
 .md ul { @apply list-disc pl-5 my-2.5 space-y-1; }
 .md ol { @apply list-decimal pl-5 my-2.5 space-y-1; }
-.md a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
-.md blockquote { @apply border-l-2 border-zinc-700 pl-3.5 my-3 text-zinc-400 italic; }
+.md a { color: var(--accent-fg); text-decoration: underline; text-underline-offset: 2px; }
+.md blockquote { border-left: 2px solid var(--border-strong); @apply pl-3.5 my-3 italic; color: var(--text-2); }
 .md code {
   @apply rounded px-1.5 py-0.5 text-[13px];
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  background: var(--bg-raised);
-  color: #e8d5a3;
+  background: var(--code-inline-bg);
+  color: var(--text-1);
 }
 .md pre {
-  background: #0a0d13;
+  background: var(--code-bg);
   border: 1px solid var(--border-soft);
   @apply rounded-xl my-3.5 overflow-x-auto;
 }
 .md pre code {
   background: transparent;
-  color: #c9d3e3;
+  color: var(--text-1);
   @apply block p-4 text-[13px] leading-[1.6];
 }
+/* light theme: swap the hljs palette to github (light) via filter-free override */
+[data-theme="light"] .md pre code.hljs { background: transparent; }
 .md table { @apply my-3.5 w-full text-sm border-collapse; }
 .md th, .md td { border: 1px solid var(--border); @apply px-3 py-2 text-left; }
-.md th { background: var(--bg-raised); @apply font-medium text-zinc-200; }
+.md th { background: var(--bg-raised); @apply font-medium; color: var(--text-1); }
 .md hr { border-color: var(--border); @apply my-5; }
-.md strong { @apply text-zinc-100 font-semibold; }
+.md strong { @apply font-semibold; color: var(--text-1); }
 
 .md pre { position: relative; }
 .md pre .copy-btn {
   position: absolute;
   top: 8px;
   right: 8px;
-  @apply text-[11px] text-zinc-500 hover:text-zinc-200 rounded-md px-2.5 py-1 opacity-0 transition-opacity;
+  @apply text-[11px] rounded-md px-2.5 py-1 opacity-0 transition-opacity;
+  color: var(--text-2);
   background: var(--bg-raised);
   border: 1px solid var(--border);
 }
 .md pre:hover .copy-btn { @apply opacity-100; }
 
-/* streaming caret */
 .caret::after {
   content: "▍";
   color: var(--accent);
@@ -92,8 +193,4 @@ button { cursor: pointer; }
 }
 @keyframes blink { 50% { opacity: 0; } }
 
-/* smooth surface transitions */
-.surface { transition: background-color 120ms ease, border-color 120ms ease; }
-
-/* text balance for taglines */
-.balance { text-wrap: balance; }
+.chip:hover { background: var(--bg-hover); border-color: var(--border-strong); }

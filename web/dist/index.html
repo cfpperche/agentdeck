@@ -12,10 +12,23 @@
     <style>
       html { background: #0b0e14; }
     </style>
-    <script type="module" crossorigin src="/assets/index-DBmle_89.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DRZQXnHB.css">
+    <script type="module" crossorigin src="/assets/index-BaE89oMt.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-C7ZKVtiu.css">
   </head>
   <body>
     <div id="app"></div>
+    <script>
+      // anti-FOUC: resolve theme before the bundle paints
+      (() => {
+        const p = localStorage.getItem("agentdeck:theme") || "system";
+        const t =
+          p === "system"
+            ? matchMedia("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark"
+            : p;
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
   </body>
 </html>

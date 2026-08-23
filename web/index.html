@@ -15,6 +15,19 @@
   </head>
   <body>
     <div id="app"></div>
+    <script>
+      // anti-FOUC: resolve theme before the bundle paints
+      (() => {
+        const p = localStorage.getItem("agentdeck:theme") || "system";
+        const t =
+          p === "system"
+            ? matchMedia("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark"
+            : p;
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

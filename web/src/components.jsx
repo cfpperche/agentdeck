@@ -8,7 +8,7 @@ export function Logo({ size = 20 }) {
     <svg
       width={size} height={size} viewBox="0 0 24 24" fill="none"
       stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
-      class="text-zinc-200 shrink-0"
+      style={{ stroke: "var(--logo-stroke)" }} class="shrink-0"
     >
       <path d="M5 7h14M5 12h14M5 17h14" opacity="0.45" />
       <circle cx="10" cy="7" r="2.4" fill="var(--bg-panel)" />
@@ -51,7 +51,7 @@ const groupOf = (iso) => {
 /* --------------------------------------------------------------- sidebar */
 export function Sidebar({
   sessions, agents, activeId, filter, setFilter,
-  onOpen, onNew, onRename, onDelete, open, setOpen,
+  onOpen, onNew, onRename, onDelete, open, setOpen, theme, onToggleTheme,
 }) {
   const [editing, setEditing] = useState(null);
   const [editTitle, setEditTitle] = useState("");
@@ -85,41 +85,33 @@ export function Sidebar({
         class={`fixed md:static z-40 inset-y-0 left-0 w-[290px] flex flex-col surface
           md:translate-x-0 transition-transform duration-200
           ${open ? "translate-x-0" : "-translate-x-full"}`}
-        style={{ background: "var(--bg-panel)", borderRight: "1px solid var(--border-soft)" }}
+        style={{ background: "var(--bg-panel)", borderRight: "1px solid var(--border)" }}
       >
         {/* brand */}
         <div class="flex items-center gap-2.5 px-4 h-14 shrink-0" style={{ borderBottom: "1px solid var(--border-soft)" }}>
           <Logo size={21} />
-          <span class="font-semibold tracking-tight text-[15px] text-zinc-100">AgentDeck</span>
-          <button class="ml-auto md:hidden text-zinc-400 p-1.5" onClick={() => setOpen(false)} aria-label="fechar">{I.x}</button>
+          <span class="font-semibold tracking-tight text-[15px]" style={{ color: "var(--text-1)" }}>AgentDeck</span>
+          <button class="ml-auto md:hidden p-1.5" style={{ color: "var(--text-2)" }} onClick={() => setOpen(false)} aria-label="fechar">{I.x}</button>
         </div>
 
         {/* actions */}
         <div class="p-3 space-y-3 shrink-0">
           <button
             onClick={onNew}
-            class={`w-full flex items-center justify-center gap-2 rounded-lg text-sm font-medium h-10 transition-all active:scale-[0.98] surface ${
-              !activeId
-                ? "text-zinc-300 hover:text-white"
-                : "text-white hover:brightness-110"
-            }`}
-            style={
-              activeId
-                ? { background: "var(--accent-strong)" }
-                : { background: "transparent", border: "1px solid var(--border)" }
-            }
+            class="w-full flex items-center justify-center gap-2 rounded-lg text-sm font-medium h-10 transition-all active:scale-[0.98] surface"
+            style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-fg)" }}
           >
             {I.plus} New session
           </button>
           <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">{I.search}</span>
+            <span style={{ color: "var(--text-3)" }} class="absolute left-3 top-1/2 -translate-y-1/2">{I.search}</span>
             <input
               value={filter}
               onInput={(e) => setFilter(e.target.value)}
               placeholder="Search sessions…"
-              class="w-full h-9 rounded-lg pl-9 pr-3 text-sm text-zinc-300 placeholder:text-zinc-500 bg-black/30 focus:outline-none surface"
-              style={{ border: "1px solid var(--border-soft)" }}
-              onfocus={(e) => (e.target.style.borderColor = "#3a4358")}
+              class="w-full h-9 rounded-lg pl-9 pr-3 text-sm focus:outline-none surface"
+              style={{ color: "var(--text-1)", background: "var(--bg-card)", border: "1px solid var(--border-soft)" }}
+              onfocus={(e) => (e.target.style.borderColor = "var(--border-strong)")}
               onblur={(e) => (e.target.style.borderColor = "var(--border-soft)")}
             />
           </div>
@@ -134,7 +126,7 @@ export function Sidebar({
           )}
           {groups.map((g) => (
             <section>
-              <h3 class="px-3 pt-4 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+              <h3 class="px-3 pt-3 pb-1 text-[10.5px] font-medium uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
                 {g.name}
               </h3>
               {g.items.map((s) => {
@@ -145,15 +137,15 @@ export function Sidebar({
                   <div
                     key={s.id}
                     onClick={() => { onOpen(s.id); setOpen(false); }}
-                    class={`group relative rounded-lg pl-3 pr-2 py-2.5 cursor-pointer surface min-h-[52px] flex flex-col justify-center ${
+                    class={`group relative rounded-lg pl-3 pr-2 py-1.5 cursor-pointer surface min-h-[42px] flex flex-col justify-center ${
                       active ? "" : "hover:bg-white/[0.04]"
                     }`}
                     style={active ? { background: "var(--bg-raised)" } : {}}
                   >
                     {active && (
-                      <span class="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-full" style={{ background: "var(--accent)" }} />
+                      <span class="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full" style={{ background: "var(--accent)" }} />
                     )}
-                    <div class="flex items-center gap-2 pr-14">
+                    <div class="flex items-center gap-2 pr-2 group-hover:pr-14 h-[22px] transition-[padding]">
                       <AgentIcon id={s.agent} size={14} color={ag.color} />
                       {editing === s.id ? (
                         <input
@@ -169,11 +161,11 @@ export function Sidebar({
                           style={{ border: "1px solid var(--accent)" }}
                         />
                       ) : (
-                        <span class={`flex-1 min-w-0 truncate text-sm ${untitled ? "italic text-zinc-500" : active ? "text-zinc-100" : "text-zinc-300"}`}>
+                        <span style={{ color: untitled ? "var(--text-3)" : active ? "var(--text-1)" : "var(--text-2)" }} class={`flex-1 min-w-0 truncate text-sm ${untitled ? "italic" : ""}`}>
                           {untitled ? "untitled" : s.title}
                         </span>
                       )}
-                      <span class="text-[11px] text-zinc-500 shrink-0">{relTime(s.updated_at)}</span>
+                      <span style={{ color: "var(--text-2)" }} class="text-[11px] shrink-0">{relTime(s.updated_at)}</span>
                     </div>
                     <div class={`mt-0.5 pl-[15px] pr-3 text-[12px] text-zinc-500 truncate ${s.preview ? "" : "hidden"}`}>
                       {s.preview}
@@ -183,19 +175,20 @@ export function Sidebar({
                       <button
                         title="rename"
                         onClick={() => { setEditing(s.id); setEditTitle(s.title); }}
-                        class="h-7 w-7 grid place-items-center rounded-md text-zinc-400 hover:text-zinc-100 surface"
+                        class="h-7 w-7 grid place-items-center rounded-md surface"
                         style={{ background: "var(--bg-raised)", border: "1px solid var(--border)" }}
                       >{I.pencil}</button>
                       {confirmDel === s.id ? (
                         <button
                           onClick={() => { onDelete(s.id); setConfirmDel(null); }}
-                          class="h-7 px-2 rounded-md bg-red-600 hover:bg-red-500 text-white text-[11px] font-medium"
+                          class="h-7 px-2 rounded-md text-[11px] font-medium"
+                          style={{ background: "var(--err)", color: "#fff" }}
                         >delete?</button>
                       ) : (
                         <button
                           title="delete"
                           onClick={() => setConfirmDel(s.id)}
-                          class="h-7 w-7 grid place-items-center rounded-md text-zinc-400 hover:text-red-400 surface"
+                          class="h-7 w-7 grid place-items-center rounded-md text-zinc-400 surface"
                           style={{ background: "var(--bg-raised)", border: "1px solid var(--border)" }}
                         >{I.trash}</button>
                       )}
@@ -214,10 +207,10 @@ export function Sidebar({
 
         {/* status footer */}
         <div
-          class="flex items-center gap-2 px-4 h-11 text-[11px] text-zinc-500 shrink-0"
+          class="flex items-center gap-2 px-4 h-11 text-[11px] shrink-0" style={{ color: "var(--text-3)" }}
           style={{ borderTop: "1px solid var(--border-soft)" }}
         >
-          <span class="h-[6px] w-[6px] rounded-full bg-emerald-500" />
+          <span class="h-[6px] w-[6px] rounded-full" style={{ background: "var(--ok)" }} />
           local agents online
         </div>
       </aside>
@@ -232,9 +225,9 @@ export function ToolChip({ tool }) {
     <span
       class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-mono surface"
       style={{
-        background: done ? "transparent" : "rgba(217,119,55,0.08)",
-        border: `1px solid ${done ? "var(--border)" : "rgba(217,119,55,0.35)"}`,
-        color: done ? "var(--tw-prose-bold, #8b95a8)" : "#d9a05a",
+        background: done ? "transparent" : "var(--warn-soft)",
+        border: `1px solid ${done ? "var(--border)" : "var(--warn-border)"}`,
+        color: done ? "var(--text-3)" : "var(--warn)",
       }}
     >
       <span class={done ? "text-emerald-500" : "animate-pulse text-amber-400"}>
@@ -253,8 +246,8 @@ export function Message({ m }) {
       <div class={`max-w-[90%] md:max-w-[75%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1.5`}>
         {isUser ? (
           <div class="flex flex-col items-end gap-1">
-            <div class="rounded-2xl rounded-br-md px-4 py-2.5 text-[15px] leading-relaxed text-zinc-100 whitespace-pre-wrap"
-              style={{ background: "#252d47", border: "1px solid #333d5e" }}>
+            <div class="rounded-2xl rounded-br-md px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap"
+              style={{ background: "var(--bubble-user-bg)", border: "1px solid var(--bubble-user-border)", color: "var(--text-1)" }}>
               {m.content}
             </div>
             {m.meta?.queued && (
@@ -333,23 +326,24 @@ export function Composer({ running, onSend, onStop, disabled, sessionId }) {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
           }}
           placeholder={disabled ? "crie uma sessão para começar" : "mensagem para o agente…"}
-          class="flex-1 resize-none rounded-xl px-4 py-3 text-[15px] text-zinc-200 placeholder:text-zinc-500 focus:outline-none disabled:opacity-50 surface"
-          style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--border)", maxHeight: 160 }}
-          onfocus={(e) => (e.target.style.borderColor = "#3a4358")}
+          class="flex-1 resize-none rounded-xl px-4 py-3 text-[15px] focus:outline-none disabled:opacity-50 surface"
+          style={{ color: "var(--text-1)", background: "var(--bg-card)", border: "1px solid var(--border)", maxHeight: 160 }}
+          onfocus={(e) => (e.target.style.borderColor = "var(--border-strong)")}
           onblur={(e) => (e.target.style.borderColor = "var(--border)")}
         />
         {running ? (
           <button
             onClick={onStop}
-            class="h-12 w-12 shrink-0 grid place-items-center rounded-xl bg-red-600/90 hover:bg-red-500 text-white transition-colors active:scale-95"
+            class="h-12 w-12 shrink-0 grid place-items-center rounded-xl transition-colors active:scale-95"
+            style={{ background: "var(--err)", color: "#fff" }}
             title="parar agente"
           >{I.stop}</button>
         ) : (
           <button
             onClick={submit}
             disabled={disabled || !text.trim()}
-            class="h-12 w-12 shrink-0 grid place-items-center rounded-xl text-white transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100 hover:brightness-110"
-            style={{ background: "var(--accent-strong)" }}
+            class="h-12 w-12 shrink-0 grid place-items-center rounded-xl transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100"
+            style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-fg)" }}
             title="enviar (Enter)"
           >{I.send}</button>
         )}
