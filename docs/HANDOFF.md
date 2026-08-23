@@ -23,9 +23,21 @@ the SQLite schema — it stays until parity is proven in the field.
 
 ## Verified facts (do not re-derive)
 
+- **Pivot decided (ADR-0004)**: persistent protocol sessions, no tmux.
+  Spike proof (`tests/spikes/claude-interactive-spike.py`): a living
+  `claude -p --input-format stream-json` process holds conversation
+  memory across turns in-process (turn 2 recalled "42" with no
+  resume); tool events arrive as JSON `tool_use` blocks. The
+  permission control-request did **not** fire under this machine's
+  `bypassPermissions` settings — the exact per-agent handshake is the
+  first open item of runner v2.
 - Agent CLIs on the dev machine: claude, codex, grok, pi, opencode —
   all have headless modes; their JSONL shapes are recorded in
   `internal/agent/agent_test.go` and mirrored by the fakes.
+- Underlying protocols (why the pivot is safe): claude
+  `--input-format stream-json` (bidirectional), pi `--mode rpc`
+  (documented JSONL for custom UIs), codex `app-server` (JSON-RPC),
+  opencode/grok `serve`+`attach` (server/clients).
 - grok CLI is a fork of opencode's (same flags family:
   `--resume`, `--continue`, `--output-format streaming-json`).
 - opencode requires a funded provider (z.ai wallet) — its adapter is
@@ -55,6 +67,12 @@ the SQLite schema — it stays until parity is proven in the field.
 
 ## Next steps (Phase 2 — not started)
 
+- [ ] **Runner v2 (ADR-0004, tier 1)**: long-lived claude/pi processes
+      with stdin/stdout JSONL; messages via stdin; SSE unchanged;
+      restart-with-ref on process death; validate the permission
+      control-request handshake per agent (blocked from spiking by
+      `bypassPermissions` in local settings — test with a clean config)
+- [ ] Tier 2 ports: codex `app-server`, grok/opencode `serve`+`attach`
 - [ ] `install.sh` (curl | sh) + Homebrew tap
 - [ ] Tagged releases with SHA256SUMS (adapt the workflow from
       cfpperche/aiagent-linux, including changelog-sourced notes)

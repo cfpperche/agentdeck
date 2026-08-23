@@ -62,6 +62,10 @@ Invariants — respect these in every change:
   (`ref`, `text`, `tool`, `final`, `error`).
 - The frontend only knows the HTTP contract; keep `web/src/api.js` in
   sync with handler changes.
+- Session model per ADR-0004: tier-1 agents (claude, pi) move to
+  long-lived bidirectional processes (stdin/stdout JSONL) under
+  `internal/runner`; spawn-per-message remains the fallback tier for
+  the rest. tmux is **not** part of the architecture.
 - `docs/adr/` records the big decisions — read the relevant ADR before
   proposing alternatives, and open an issue before non-trivial work.
 

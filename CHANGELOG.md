@@ -24,6 +24,9 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
     disables TLS.
 - `tests/fakes/`: fake agent binaries powering deterministic, offline,
   zero-token tests.
+- `tests/spikes/`: evidence scripts for architecture decisions (see
+  ADR-0004 — persistent bidirectional agent processes proven against
+  the real claude CLI; tmux integration discarded).
 - `.pi/skills/agent-browser/`: skill for verifying the web UI with a
   real browser (tested against the CLI, includes stale-ref and zombie
   discipline, install instructions and fallback).
