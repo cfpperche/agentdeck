@@ -87,6 +87,29 @@ with the **agent-browser** skill (`.pi/skills/agent-browser/`):
 `--ignore-https-errors`, act via `snapshot` refs, confirm with a
 `screenshot`. Prefer this over describing what the code "should" render.
 
+## Benchmark-first workflow (mandatory)
+
+Before designing or architecting any feature, **study how the benchmark
+projects solved the same problem**, then propose our approach grounded in
+that study. Never design in a vacuum.
+
+Benchmarks (see `docs/benchmarks/README.md` for rationale):
+
+- **t3code** — https://github.com/pingdotgg/t3code
+- **paseo** — https://github.com/getpaseo/paseo
+
+Protocol per feature:
+
+1. Shallow-clone both (or read the existing study in `docs/benchmarks/`).
+2. Find their implementation; note file paths as receipts.
+3. Write/extend a dated study under `docs/benchmarks/` comparing their
+   approaches and our current state (gaps included).
+4. Only then propose the architecture (PR description or ADR for big
+   decisions), citing the study.
+5. Explicitly note what we deliberately do NOT copy and why.
+
+Existing studies: [sessions & composer](benchmarks/2026-08-23-sessions-and-composer.md).
+
 ## Keeping docs in sync (mandatory)
 
 Documentation is part of the change, not an afterthought. A PR that changes

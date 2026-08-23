@@ -7,6 +7,9 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- Benchmark-first workflow: t3code and paseo adopted as reference
+  projects (AGENTS.md); first study (sessions & composer) with a
+  13-gap adversarial comparison → 8 tracked issues (#1–#8).
 - Self-signed certificate now covers localhost, LAN and tailnet IPs
   (all local IPv4 SANs) — trusting it once in the OS removes browser
   warnings on every access route (incl. VS Code Simple Browser, which
