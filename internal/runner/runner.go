@@ -1,5 +1,7 @@
 // Package runner manages agent process lifecycles: spawn, stream-parse,
-// broadcast to subscribers, persist results. One process per session.
+// broadcast to subscribers, persist results. One process per session
+// (live tier) or per turn (fallback tier), with a session state machine
+// and a message queue for steering (benchmark study G1/G3).
 package runner
 
 import (
@@ -19,14 +21,36 @@ import (
 	"github.com/cfpperche/agentdeck/internal/store"
 )
 
-// ErrBusy mirrors the legacy 409: one running process per session.
-var ErrBusy = errors.New("agent already running for this session")
+// SessionStatus is the session state machine (benchmark study G1,
+// after t3code's RuntimeSessionState, simplified):
+//
+//	idle    — no turn in flight
+//	running — a turn is in flight
+//	waiting — a turn is in flight AND the agent asked the user
+//	          something (permission); answering returns to running
+type SessionStatus string
 
-// StreamEvent is the client-facing event (SSE payload shape, parity with
-// the Phase-0 server).
+const (
+	StatusIdle    SessionStatus = "idle"
+	StatusRunning SessionStatus = "running"
+	StatusWaiting SessionStatus = "waiting"
+)
+
+// QueueCap bounds how many messages may wait while a turn is in flight.
+const QueueCap = 5
+
+var (
+	// ErrBusy is returned when the queue is full (turn in flight).
+	ErrBusy = errors.New("queue full: too many messages waiting")
+)
+
+// StreamEvent is the client-facing event (SSE payload shape).
+// `running` is derived (status != idle) and kept for compatibility;
+// `status` is the authoritative field.
 type StreamEvent struct {
-	Type      string         `json:"type"` // state | text | tool | message_end | permission
+	Type      string         `json:"type"` // state | text | tool | message_end | permission | queue
 	Running   bool           `json:"running"`
+	Status    string         `json:"status,omitempty"`
 	Content   string         `json:"content,omitempty"`
 	Name      string         `json:"name,omitempty"`
 	State     string         `json:"state,omitempty"`
@@ -35,6 +59,7 @@ type StreamEvent struct {
 	RequestID string         `json:"request_id,omitempty"` // permission events (ADR-0004)
 	Tool      string         `json:"tool,omitempty"`
 	Input     string         `json:"input,omitempty"`
+	Count     int            `json:"count,omitempty"` // queue events
 }
 
 const taskTimeout = 10 * time.Minute
@@ -45,8 +70,11 @@ type Runner struct {
 	Workspaces string
 
 	mu      sync.Mutex
-	running map[string]context.CancelFunc
-	live    map[string]*liveProc
+	running map[string]context.CancelFunc // fallback cancels + live busy marker
+	live    map[string]*liveProc         // persistent tier-1 processes (ADR-0004)
+	state   map[string]SessionStatus
+	pending map[string]StreamEvent   // latest unanswered permission per session
+	queues  map[string][]string      // messages waiting for the current turn
 	subs    map[string]map[chan StreamEvent]struct{}
 }
 
@@ -56,15 +84,36 @@ func New(reg *agent.Registry, st *store.Store, workspaces string) *Runner {
 		Registry: reg, Store: st, Workspaces: workspaces,
 		running: map[string]context.CancelFunc{},
 		live:    map[string]*liveProc{},
+		state:   map[string]SessionStatus{},
+		pending: map[string]StreamEvent{},
+		queues:  map[string][]string{},
 		subs:    map[string]map[chan StreamEvent]struct{}{},
 	}
 }
 
-func (r *Runner) IsRunning(sid string) bool {
+// Status returns the current session status (idle when unknown).
+func (r *Runner) Status(sid string) SessionStatus {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	_, ok := r.running[sid]
-	return ok
+	if st, ok := r.state[sid]; ok {
+		return st
+	}
+	return StatusIdle
+}
+
+// IsRunning reports whether a turn is in flight (running or waiting).
+func (r *Runner) IsRunning(sid string) bool {
+	return r.Status(sid) != StatusIdle
+}
+
+// setStatus mutates and broadcasts the new state.
+func (r *Runner) setStatus(sid string, st SessionStatus) {
+	r.mu.Lock()
+	r.state[sid] = st
+	r.mu.Unlock()
+	r.broadcast(sid, StreamEvent{
+		Type: "state", Status: string(st), Running: st != StatusIdle,
+	})
 }
 
 // Subscribe returns a channel of events for this session and a cancel func.
@@ -94,35 +143,57 @@ func (r *Runner) broadcast(sid string, ev StreamEvent) {
 	}
 }
 
-// Send runs the agent for this session and returns immediately; results
-// arrive via Subscribe / ListMessages.
-func (r *Runner) Send(sid, text string) error {
+// PendingPermission returns the unanswered permission event for a
+// session (for late SSE subscribers), or nil.
+func (r *Runner) PendingPermission(sid string) *StreamEvent {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if ev, ok := r.pending[sid]; ok {
+		e := ev
+		return &e
+	}
+	return nil
+}
+
+// Send delivers a message or queues it while a turn is in flight
+// (steering). The user message is persisted immediately either way;
+// queued messages are delivered automatically when the turn ends.
+// Returns (queued, error): queued=true means accepted into the queue.
+func (r *Runner) Send(sid, text string) (bool, error) {
 	ss, err := r.Store.GetSession(sid)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if ss == nil {
-		return os.ErrNotExist
+		return false, os.ErrNotExist
 	}
 	adapter, ok := r.Registry.Get(ss.Agent)
 	if !ok {
-		return fmt.Errorf("agent %q unavailable", ss.Agent)
+		return false, fmt.Errorf("agent %q unavailable", ss.Agent)
 	}
 
-	r.mu.Lock()
-	if _, busy := r.running[sid]; busy {
+	// turn in flight? queue for delivery at turn end (G3).
+	// NOTE: nothing is persisted unless accepted (cap check first).
+	if r.IsRunning(sid) {
+		r.mu.Lock()
+		if len(r.queues[sid]) >= QueueCap {
+			r.mu.Unlock()
+			return false, ErrBusy
+		}
+		if _, err := r.Store.AddMessage(sid, "user", text, nil); err != nil {
+			r.mu.Unlock()
+			return false, err
+		}
+		r.queues[sid] = append(r.queues[sid], text)
+		n := len(r.queues[sid])
 		r.mu.Unlock()
-		return ErrBusy
+		r.broadcast(sid, StreamEvent{Type: "queue", Count: n})
+		return true, nil
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	r.running[sid] = cancel
-	r.mu.Unlock()
 
-	// persist user message + auto-title (ChatGPT-style, parity with legacy)
+	// idle: persist user message + auto-title, then deliver
 	if _, err := r.Store.AddMessage(sid, "user", text, nil); err != nil {
-		cancel()
-		r.clearRunning(sid)
-		return err
+		return false, err
 	}
 	if ss.Title == "" || ss.Title == "New session" || ss.Title == "Nova sessão" {
 		title := strings.Join(strings.Fields(text), " ")
@@ -134,28 +205,80 @@ func (r *Runner) Send(sid, text string) error {
 		}
 	}
 
+	return false, r.deliver(sid, ss, adapter, text)
+}
+
+// deliver starts a turn with a (already persisted) user message.
+func (r *Runner) deliver(sid string, ss *store.Session, adapter agent.Adapter, text string) error {
 	// tier-1 (ADR-0004): persistent bidirectional process — no spawn
 	if adapter.BuildLive != nil {
-		cancel() // one-shot ctx not used on this path
-		r.clearRunning(sid)
 		if err := r.sendLive(sid, adapter, text); err != nil {
 			return err
 		}
 		r.mu.Lock()
-		r.running[sid] = func() {} // busy marker until turn ends (finish)
+		r.running[sid] = func() {} // busy marker; Stop()/finish clear it
 		r.mu.Unlock()
-		r.broadcast(sid, StreamEvent{Type: "state", Running: true})
+		r.setStatus(sid, StatusRunning)
 		return nil
 	}
+
+	// fallback: one-shot spawn per turn
+	ctx, cancel := context.WithCancel(context.Background())
+	r.mu.Lock()
+	r.running[sid] = cancel
+	r.mu.Unlock()
 
 	cwd := filepath.Join(r.Workspaces, sid)
 	os.MkdirAll(cwd, 0o755)
 	hasHistory := r.Store.HasAssistantReply(sid)
 	argv := adapter.Build(text, ss.AgentRef, cwd, hasHistory)
 
-	r.broadcast(sid, StreamEvent{Type: "state", Running: true})
+	r.setStatus(sid, StatusRunning)
 	go r.pump(sid, adapter, argv, cwd, ctx)
 	return nil
+}
+
+// drain delivers queued messages after a turn ends; stops at the first
+// delivery so each turn gets its own lifecycle.
+func (r *Runner) drain(sid string) {
+	r.mu.Lock()
+	q := r.queues[sid]
+	if len(q) == 0 {
+		r.mu.Unlock()
+		return
+	}
+	text := q[0]
+	r.queues[sid] = q[1:]
+	r.mu.Unlock()
+
+	ss, err := r.Store.GetSession(sid)
+	if err != nil || ss == nil {
+		return // session deleted mid-queue: drop
+	}
+	adapter, ok := r.Registry.Get(ss.Agent)
+	if !ok {
+		return
+	}
+	if err := r.deliver(sid, ss, adapter, text); err != nil {
+		// deliver failed: drop the rest quietly (message is in history)
+		r.ClearQueue(sid)
+	}
+}
+
+// ClearQueue discards all queued messages; returns how many were dropped.
+func (r *Runner) ClearQueue(sid string) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	n := len(r.queues[sid])
+	delete(r.queues, sid)
+	return n
+}
+
+// QueueLen reports how many messages are waiting.
+func (r *Runner) QueueLen(sid string) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.queues[sid])
 }
 
 func (r *Runner) pump(sid string, adapter agent.Adapter, argv []string, cwd string, ctx context.Context) {
@@ -266,9 +389,11 @@ func (r *Runner) finish(sid, content string, tools []map[string]any, errMsg stri
 	if err != nil {
 		msg = &store.Message{Role: "assistant", Content: content, Meta: meta}
 	}
-	r.clearRunning(sid) // free the busy marker (live turns end here)
+	r.clearRunning(sid)
 	r.broadcast(sid, StreamEvent{Type: "message_end", Message: msg})
-	r.broadcast(sid, StreamEvent{Type: "state", Running: false})
+	r.setStatus(sid, StatusIdle)
+	// any queued message? deliver the next turn now (G3)
+	r.drain(sid)
 }
 
 func (r *Runner) sessionAgent(sid string) string {
@@ -288,14 +413,15 @@ func (r *Runner) clearRunning(sid string) {
 	r.mu.Unlock()
 }
 
-// Stop terminates the running process for a session (if any).
+// Stop cancels the current turn (fallback tier: kills the process;
+// live tier: lets it run to completion) and clears the message queue.
+// Returns true if anything was active.
 func (r *Runner) Stop(sid string) bool {
-	r.mu.Lock()
-	cancel, ok := r.running[sid]
-	r.mu.Unlock()
-	if !ok {
-		return false
+	active := r.IsRunning(sid)
+	r.ClearQueue(sid)
+	r.clearRunning(sid)
+	if active {
+		r.setStatus(sid, StatusIdle)
 	}
-	cancel()
-	return true
+	return active
 }

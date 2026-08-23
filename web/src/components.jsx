@@ -252,9 +252,14 @@ export function Message({ m }) {
     <div class={`flex ${isUser ? "justify-end" : "justify-start"} mb-5`}>
       <div class={`max-w-[90%] md:max-w-[75%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1.5`}>
         {isUser ? (
-          <div class="rounded-2xl rounded-br-md px-4 py-2.5 text-[15px] leading-relaxed text-zinc-100 whitespace-pre-wrap"
-            style={{ background: "#252d47", border: "1px solid #333d5e" }}>
-            {m.content}
+          <div class="flex flex-col items-end gap-1">
+            <div class="rounded-2xl rounded-br-md px-4 py-2.5 text-[15px] leading-relaxed text-zinc-100 whitespace-pre-wrap"
+              style={{ background: "#252d47", border: "1px solid #333d5e" }}>
+              {m.content}
+            </div>
+            {m.meta?.queued && (
+              <span class="text-[11px] text-sky-300/80 pr-1">queued — will send when the turn ends</span>
+            )}
           </div>
         ) : (
           <div class="rounded-2xl rounded-bl-md px-4 py-3 w-full"
@@ -286,7 +291,9 @@ export function Composer({ running, onSend, onStop, disabled }) {
   }, [text]);
 
   const submit = () => {
-    if (!text.trim() || running || disabled) return;
+    // no `running` guard: while a turn is in flight the message QUEUES
+    // (steering, benchmark G3) — the server caps and 409s when full
+    if (!text.trim() || disabled) return;
     onSend(text.trim());
     setText("");
   };

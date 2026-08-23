@@ -7,6 +7,18 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Session state machine** (`idle | running | waiting`) — the SSE
+  `state` event carries `status` (G1, issue #1). `waiting` = a turn is
+  in flight AND the agent asked for approval; late subscribers get the
+  pending permission replayed on SSE connect. UI header shows
+  waiting/running distinctly.
+- **Message queueing / steering** (G3, issue #3): sending while a turn
+  is in flight returns `202 {"queued":true}` and the message is
+  delivered automatically at turn end (cap 5, then 409).
+  `POST /api/sessions/{id}/queue/cancel` discards the queue; the UI
+  shows a queued tag and a cancel affordance. Queued messages persist
+  to history immediately (visible while waiting); an AgentDeck
+  restart mid-queue drops undelivered ones (documented limitation).
 - Benchmark-first workflow: t3code and paseo adopted as reference
   projects (AGENTS.md); first study (sessions & composer) with a
   13-gap adversarial comparison → 8 tracked issues (#1–#8).

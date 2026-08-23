@@ -139,9 +139,15 @@ func (r *Runner) pumpLive(sid string, adapter agent.Adapter, lp *liveProc, pr *o
 				r.broadcast(sid, StreamEvent{Type: "tool",
 					Name: ev.Name, State: ev.State, Detail: ev.Detail})
 			case agent.KindControl:
-				// ask the user; turn stays open until Control() answers
-				r.broadcast(sid, StreamEvent{Type: "permission",
-					RequestID: ev.Ref, Tool: ev.Name, Input: ev.Detail})
+				// ask the user; turn stays open until Control() answers.
+				// G1: session enters 'waiting'; snapshot for late subscribers.
+				pev := StreamEvent{Type: "permission",
+					RequestID: ev.Ref, Tool: ev.Name, Input: ev.Detail}
+				r.mu.Lock()
+				r.pending[sid] = pev
+				r.mu.Unlock()
+				r.setStatus(sid, StatusWaiting)
+				r.broadcast(sid, pev)
 			case agent.KindFinal:
 				final = ev.Content
 			case agent.KindError:
@@ -157,7 +163,7 @@ func (r *Runner) pumpLive(sid string, adapter agent.Adapter, lp *liveProc, pr *o
 		}
 	}
 	// stream ended: process died. If a turn was in flight, persist what
-	// we have and mark not-running; next Send restarts with ref.
+	// we have and mark idle; next Send restarts with ref.
 	if len(textAcc) > 0 || len(tools) > 0 {
 		content := strings.Join(textAcc, "")
 		if content == "" {
@@ -165,8 +171,8 @@ func (r *Runner) pumpLive(sid string, adapter agent.Adapter, lp *liveProc, pr *o
 		}
 		r.finish(sid, content, tools, "", nil)
 	} else if r.IsRunning(sid) {
-		r.broadcast(sid, StreamEvent{Type: "state", Running: false})
 		r.clearRunning(sid)
+		r.setStatus(sid, StatusIdle)
 	}
 	lp.mu.Lock()
 	lp.closed = true
@@ -203,7 +209,7 @@ func (r *Runner) Control(sid string, requestID, behavior string) error {
 	if behavior != "allow" && behavior != "deny" {
 		return fmt.Errorf("behavior must be allow or deny")
 	}
-	return lp.write(map[string]any{
+	err := lp.write(map[string]any{
 		"type":       "control_response",
 		"request_id": requestID,
 		"response": map[string]any{
@@ -211,4 +217,11 @@ func (r *Runner) Control(sid string, requestID, behavior string) error {
 			"updatedInput": map[string]any{},
 		},
 	})
+	if err == nil {
+		r.mu.Lock()
+		delete(r.pending, sid)
+		r.mu.Unlock()
+		r.setStatus(sid, StatusRunning) // G1: back to work
+	}
+	return err
 }

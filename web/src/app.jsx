@@ -10,6 +10,8 @@ export function App() {
   const [messages, setMessages] = useState([]);
   const [stream, setStream] = useState(null);
   const [running, setRunning] = useState(false);
+  const [status, setStatus] = useState("idle"); // idle | running | waiting
+  const [queuedCount, setQueuedCount] = useState(0);
   const [filter, setFilter] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toast, setToast] = useState(null);
@@ -35,18 +37,24 @@ export function App() {
 
   useEffect(() => {
     esRef.current?.close();
-    setStream(null); setRunning(false);
+    setStream(null); setRunning(false); setStatus("idle"); setQueuedCount(0);
     if (!activeId) { setMessages([]); return; }
     api.messages(activeId).then(setMessages).catch(() => {});
     esRef.current = openEvents(activeId, (ev) => {
-      if (ev.type === "state") setRunning(ev.running);
+      if (ev.type === "state") {
+        setRunning(ev.running);
+        setStatus(ev.status || (ev.running ? "running" : "idle"));
+      }
+      else if (ev.type === "queue") setQueuedCount(ev.count || 0);
       else if (ev.type === "text")
         setStream((s) => ({ text: (s?.text || "") + ev.content, tools: s?.tools || [] }));
       else if (ev.type === "tool")
         setStream((s) => ({ text: s?.text || "", tools: [...(s?.tools || []), { name: ev.name, state: ev.state }] }));
       else if (ev.type === "message_end") {
-        setMessages((m) => [...m, ev.message]);
+        // resync from the server: queued tags resolve once delivered
+        api.messages(activeId).then(setMessages).catch(() => {});
         setStream(null);
+        setQueuedCount((q) => Math.max(0, q - 1));
         refreshSessions();
       }
     });
@@ -73,9 +81,15 @@ export function App() {
 
   const send = (text) => {
     api.send(activeId, text)
-      .then(() => {
-        setMessages((m) => [...m, { role: "user", content: text, meta: null, id: Date.now() }]);
-        setRunning(true); setAtBottom(true);
+      .then((res) => {
+        setMessages((m) => [
+          ...m,
+          { role: "user", content: text, meta: res.queued ? { queued: true } : null, id: Date.now() },
+        ]);
+        if (res.queued) setQueuedCount((q) => q + 1);
+        setRunning(true);
+        setStatus("running");
+        setAtBottom(true);
       })
       .catch((e) => showToast(e.detail || "failed to send"));
   };
@@ -116,12 +130,29 @@ export function App() {
           ) : (
             <span class="flex items-center gap-2 md:hidden text-zinc-300 text-sm font-medium"><Logo size={17} /> AgentDeck</span>
           )}
-          {running && (
-            <span class="ml-auto flex items-center gap-1.5 text-xs text-amber-400 shrink-0">
-              <span class="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-              running
-            </span>
-          )}
+          <div class="ml-auto flex items-center gap-2 shrink-0">
+            {queuedCount > 0 && active && (
+              <button
+                onClick={() => api.clearQueue(activeId).then(() => setQueuedCount(0))}
+                class="text-[11px] text-sky-300/90 hover:text-sky-200"
+                title="cancel queued messages"
+              >
+                {queuedCount} queued · cancel
+              </button>
+            )}
+            {status === "waiting" && (
+              <span class="flex items-center gap-1.5 text-xs text-amber-400">
+                <span class="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                waiting
+              </span>
+            )}
+            {status === "running" && (
+              <span class="flex items-center gap-1.5 text-xs text-emerald-400">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                running
+              </span>
+            )}
+          </div>
         </header>
 
         {/* content area */}

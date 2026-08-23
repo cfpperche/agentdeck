@@ -62,7 +62,7 @@ func TestLiveMemoryInOneProcess(t *testing.T) {
 	r, st := newLiveRunner(t, nil)
 
 	ss, _ := st.CreateSession("claude", "")
-	if err := r.Send(ss.ID, "Remember: secret is 777"); err != nil {
+	if _, err := r.Send(ss.ID, "Remember: secret is 777"); err != nil {
 		t.Fatal(err)
 	}
 	waitAssistant(t, st, ss.ID, 1)
@@ -70,7 +70,7 @@ func TestLiveMemoryInOneProcess(t *testing.T) {
 	pid1 := r.livePID(t, ss.ID)
 
 	// second turn into the SAME living process — no resume dance
-	if err := r.Send(ss.ID, "What do you remember?"); err != nil {
+	if _, err := r.Send(ss.ID, "What do you remember?"); err != nil {
 		t.Fatal(err)
 	}
 	msgs := waitAssistant(t, st, ss.ID, 2)
@@ -115,7 +115,7 @@ func TestLivePermissionRoundTrip(t *testing.T) {
 		}
 	}()
 
-	if err := r.Send(ss.ID, "Write file now"); err != nil {
+	if _, err := r.Send(ss.ID, "Write file now"); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -144,7 +144,7 @@ func TestLivePermissionRoundTrip(t *testing.T) {
 	}
 
 	// ask again and allow → file exists
-	if err := r.Send(ss.ID, "Write file now"); err != nil {
+	if _, err := r.Send(ss.ID, "Write file now"); err != nil {
 		t.Fatal(err)
 	}
 	for {
@@ -174,7 +174,7 @@ func TestLiveCrashRestarts(t *testing.T) {
 	r, st := newLiveRunner(t, map[string]string{"FAKE_CRASH_AFTER": "1"})
 
 	ss, _ := st.CreateSession("claude", "")
-	if err := r.Send(ss.ID, "hello one"); err != nil {
+	if _, err := r.Send(ss.ID, "hello one"); err != nil {
 		t.Fatal(err)
 	}
 	waitAssistant(t, st, ss.ID, 1)
@@ -190,7 +190,7 @@ func TestLiveCrashRestarts(t *testing.T) {
 	}
 
 	// next Send must transparently restart the process
-	if err := r.Send(ss.ID, "hello two"); err != nil {
+	if _, err := r.Send(ss.ID, "hello two"); err != nil {
 		t.Fatalf("send after crash: %v", err)
 	}
 	msgs := waitAssistant(t, st, ss.ID, 2)
@@ -230,4 +230,126 @@ func (r *Runner) liveAlive(t *testing.T, sid string) bool {
 	lp := r.live[sid]
 	r.mu.Unlock()
 	return lp.alive()
+}
+
+// collectStatuses reads events until the predicate or timeout, recording
+// every state/permission event seen.
+func collectUntil(t *testing.T, ch <-chan StreamEvent, timeout time.Duration, done func([]string) bool) []string {
+	t.Helper()
+	var seq []string
+	deadline := time.After(timeout)
+	for {
+		select {
+		case ev := <-ch:
+			switch ev.Type {
+			case "state":
+				seq = append(seq, "state:"+ev.Status)
+			case "permission":
+				seq = append(seq, "permission")
+			case "message_end":
+				seq = append(seq, "turn_end")
+			}
+			if done(seq) {
+				return seq
+			}
+		case <-deadline:
+			return seq
+		}
+	}
+}
+
+func TestWaitingStateTransitions(t *testing.T) {
+	os.Remove("/tmp/agentdeck-live.txt")
+	r, st := newLiveRunner(t, map[string]string{"FAKE_ASK": "1"})
+
+	ss, _ := st.CreateSession("claude", "")
+	ch, unsub := r.Subscribe(ss.ID)
+	defer unsub()
+
+	if _, err := r.Send(ss.ID, "Write file now"); err != nil {
+		t.Fatal(err)
+	}
+
+	// running → permission → waiting (done only when BOTH arrived)
+	seq := collectUntil(t, ch, 5*time.Second, func(s []string) bool {
+		return contains(s, "state:waiting") && contains(s, "permission")
+	})
+	if !contains(seq, "state:running") || !contains(seq, "permission") || !contains(seq, "state:waiting") {
+		t.Fatalf("sequence = %v", seq)
+	}
+	if r.Status(ss.ID) != StatusWaiting {
+		t.Fatalf("Status = %s, want waiting", r.Status(ss.ID))
+	}
+
+	// late subscriber sees the pending permission replay (G1)
+	if p := r.PendingPermission(ss.ID); p == nil || p.RequestID == "" {
+		t.Fatal("PendingPermission missing during waiting")
+	}
+
+	// answer → running again → turn completes → idle
+	if p := r.PendingPermission(ss.ID); p != nil {
+		if err := r.Control(ss.ID, p.RequestID, "allow"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	seq = collectUntil(t, ch, 5*time.Second, func(s []string) bool {
+		return contains(s, "state:idle")
+	})
+	for _, want := range []string{"state:running", "turn_end", "state:idle"} {
+		if !contains(seq, want) {
+			t.Fatalf("after allow: %v (want %s)", seq, want)
+		}
+	}
+}
+
+func TestQueuedSteeringDelivered(t *testing.T) {
+	r, st := newLiveRunner(t, nil)
+
+	ss, _ := st.CreateSession("claude", "")
+	ch, unsub := r.Subscribe(ss.ID)
+	defer unsub()
+
+	if _, err := r.Send(ss.ID, "Remember: steering works"); err != nil {
+		t.Fatal(err)
+	}
+	// second message while turn 1 is in flight → queued, not rejected
+	queued, err := r.Send(ss.ID, "What do you remember?")
+	if err != nil || !queued {
+		t.Fatalf("second send: queued=%v err=%v", queued, err)
+	}
+	if r.QueueLen(ss.ID) != 1 {
+		t.Fatalf("QueueLen = %d", r.QueueLen(ss.ID))
+	}
+
+	// both turns complete; the second recalls the first (same process)
+	deadline := time.Now().Add(15 * time.Second)
+	for {
+		msgs, _ := st.ListMessages(ss.ID)
+		assistants := 0
+		for _, m := range msgs {
+			if m.Role == "assistant" {
+				assistants++
+			}
+		}
+		if assistants >= 2 {
+			if msgs[len(msgs)-1].Content != "steering works" {
+				t.Fatalf("second turn = %q", msgs[len(msgs)-1].Content)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("queued turn never delivered")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	_ = ch
+}
+
+func contains(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }

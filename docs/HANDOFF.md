@@ -46,7 +46,14 @@ the SQLite schema — it stays until parity is proven in the field.
   Python prototype). Frontend consumes exactly that surface
   (`web/src/api.js`).
 
-## Bodies buried (war stories — read before touching these areas)
+## Bodies buried
+
+0. **Queue is memory-only**: queued messages persist to chat history
+   immediately but delivery state does not survive an AgentDeck
+   restart (undelivered ones remain as unanswered user messages).
+   Also: rejected-at-cap messages are NOT persisted (cap check runs
+   before persistence — regression-tested).
+ (war stories — read before touching these areas)
 
 1. **Subprocess kill**: `CommandContext` kills only the parent; agent
    children inherit the output pipe and block the scanner forever.

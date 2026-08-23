@@ -34,6 +34,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/sessions/{id}/messages", s.handleMessages)
 	mux.HandleFunc("POST /api/sessions/{id}/messages", s.handleSend)
 	mux.HandleFunc("POST /api/sessions/{id}/control", s.handleControl)
+	mux.HandleFunc("POST /api/sessions/{id}/queue/cancel", s.handleQueueCancel)
 	mux.HandleFunc("POST /api/sessions/{id}/stop", s.handleStop)
 	mux.HandleFunc("GET /api/sessions/{id}/events", s.handleEvents)
 
@@ -175,17 +176,25 @@ func (s *Server) handleSend(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "empty message")
 		return
 	}
-	err := s.Runner.Send(r.PathValue("id"), in.Text)
+	queued, err := s.Runner.Send(r.PathValue("id"), in.Text)
 	switch {
+	case err == nil && queued:
+		writeJSON(w, http.StatusAccepted, map[string]any{"ok": true, "queued": true})
 	case err == nil:
-		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "queued": false})
+	case errors.Is(err, runner.ErrBusy):
+		writeErr(w, http.StatusConflict, err.Error())
 	case errors.Is(err, os.ErrNotExist):
 		writeErr(w, 404, "session not found")
-	case errors.Is(err, runner.ErrBusy):
-		writeErr(w, 409, err.Error())
 	default:
 		writeErr(w, 500, err.Error())
 	}
+}
+
+// handleQueueCancel discards queued (not yet delivered) messages.
+func (s *Server) handleQueueCancel(w http.ResponseWriter, r *http.Request) {
+	cleared := s.Runner.ClearQueue(r.PathValue("id"))
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "cleared": cleared})
 }
 
 func (s *Server) handleStop(w http.ResponseWriter, r *http.Request) {
@@ -231,10 +240,18 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	ch, unsub := s.Runner.Subscribe(id)
 	defer unsub()
 
-	// state snapshot on connect (parity with legacy)
+	// state snapshot on connect (parity with legacy) + late-subscriber
+	// pending-permission replay (G1): a page reload during 'waiting'
+	// must still show the banner
+	st := s.Runner.Status(id)
 	snapshot, _ := json.Marshal(runner.StreamEvent{
-		Type: "state", Running: s.Runner.IsRunning(id)})
+		Type: "state", Status: string(st), Running: st != runner.StatusIdle})
 	w.Write([]byte("data: " + string(snapshot) + "\n\n"))
+	if pev := s.Runner.PendingPermission(id); pev != nil {
+		if b, err := json.Marshal(pev); err == nil {
+			w.Write([]byte("data: " + string(b) + "\n\n"))
+		}
+	}
 	fl.Flush()
 
 	heartbeat := time.NewTicker(15 * time.Second)

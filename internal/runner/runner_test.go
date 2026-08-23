@@ -72,7 +72,7 @@ func TestSendHappyPath(t *testing.T) {
 	ch, unsub := r.Subscribe(ss.ID)
 	defer unsub()
 
-	if err := r.Send(ss.ID, "run echo hello"); err != nil {
+	if _, err := r.Send(ss.ID, "run echo hello"); err != nil {
 		t.Fatalf("send: %v", err)
 	}
 
@@ -122,27 +122,55 @@ func TestSendHappyPath(t *testing.T) {
 	}
 }
 
-func TestSendBusy(t *testing.T) {
-	r, st := newTestRunner(t, map[string]string{"FAKE_SLEEP": "3"})
+func TestQueueFullAndDrain(t *testing.T) {
+	// fallback tier, one-shot held busy by FAKE_SLEEP
+	r, st := newTestRunner(t, map[string]string{"FAKE_SLEEP": "2"})
 
 	ss, _ := st.CreateSession("claude", "")
-	if err := r.Send(ss.ID, "first"); err != nil {
+	if _, err := r.Send(ss.ID, "first"); err != nil {
 		t.Fatal(err)
 	}
-	// give the process a moment to actually be running
-	time.Sleep(200 * time.Millisecond)
 
-	if err := r.Send(ss.ID, "second"); err != ErrBusy {
-		t.Fatalf("second send err = %v, want ErrBusy", err)
+	// fill the queue to the cap
+	for i := 0; i < runnerQueueCap(); i++ {
+		queued, err := r.Send(ss.ID, "queued-"+string(rune('a'+i)))
+		if err != nil || !queued {
+			t.Fatalf("enqueue %d: queued=%v err=%v", i, queued, err)
+		}
+	}
+	// one beyond the cap → ErrBusy
+	if _, err := r.Send(ss.ID, "overflow"); err != ErrBusy {
+		t.Fatalf("overflow err = %v, want ErrBusy", err)
 	}
 
-	r.Stop(ss.ID)
-	deadline := time.Now().Add(5 * time.Second)
+	// cancel everything queued, then let the turn finish
+	if n := r.ClearQueue(ss.ID); n != runnerQueueCap() {
+		t.Fatalf("ClearQueue = %d", n)
+	}
+	waitAssistant(t, st, ss.ID, 1)
+	deadline := time.Now().Add(3 * time.Second)
 	for r.IsRunning(ss.ID) && time.Now().Before(deadline) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	if r.IsRunning(ss.ID) {
-		t.Fatal("stop did not terminate the run")
+		t.Fatal("still running after sleep turn")
+	}
+	// queue was cancelled: no further turns fire. Queued (cancelled)
+	// user messages remain in history by design — assert assistant count
+	// stays at exactly 1 and nothing is delivered afterwards.
+	time.Sleep(700 * time.Millisecond) // drain window would fire here
+	msgs, _ := st.ListMessages(ss.ID)
+	assistants := 0
+	for _, m := range msgs {
+		if m.Role == "assistant" {
+			assistants++
+		}
+	}
+	if assistants != 1 {
+		t.Fatalf("assistants after cancel = %d, want 1", assistants)
+	}
+	if r.QueueLen(ss.ID) != 0 {
+		t.Fatalf("queue not empty: %d", r.QueueLen(ss.ID))
 	}
 }
 
@@ -153,18 +181,24 @@ func TestStopPersistsPartial(t *testing.T) {
 	ch, unsub := r.Subscribe(ss.ID)
 	defer unsub()
 
-	if err := r.Send(ss.ID, "long task"); err != nil {
+	if _, err := r.Send(ss.ID, "long task"); err != nil {
 		t.Fatal(err)
 	}
 	// wait for the streamed lines, then kill mid-sleep
 	collect(t, ch, []string{"state", "tool", "text"})
 	r.Stop(ss.ID)
 
+	// Stop marks idle immediately; the partial result lands a beat later —
+	// wait for the persisted assistant message, not for the state
 	deadline := time.Now().Add(5 * time.Second)
-	for r.IsRunning(ss.ID) && time.Now().Before(deadline) {
+	var msgs []store.Message
+	for time.Now().Before(deadline) {
+		msgs, _ = st.ListMessages(ss.ID)
+		if len(msgs) >= 2 {
+			break
+		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	msgs, _ := st.ListMessages(ss.ID)
 	if len(msgs) != 2 {
 		t.Fatalf("messages after stop = %d, want 2 (user + partial assistant)", len(msgs))
 	}
@@ -176,7 +210,9 @@ func TestStopPersistsPartial(t *testing.T) {
 
 func TestUnknownSession(t *testing.T) {
 	r, _ := newTestRunner(t, nil)
-	if err := r.Send("nope", "hi"); err != os.ErrNotExist {
+	if _, err := r.Send("nope", "hi"); err != os.ErrNotExist {
 		t.Fatalf("err = %v, want ErrNotExist", err)
 	}
 }
+
+func runnerQueueCap() int { return 5 }

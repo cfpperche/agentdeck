@@ -31,6 +31,8 @@ export const api = {
       body: JSON.stringify({ request_id: requestId, behavior }),
     }).then(json),
   stop: (id) => fetch(`/api/sessions/${id}/stop`, { method: "POST" }).then(json),
+  clearQueue: (id) =>
+    fetch(`/api/sessions/${id}/queue/cancel`, { method: "POST" }).then(json),
 };
 
 export function openEvents(sid, onEvent) {
