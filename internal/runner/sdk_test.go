@@ -1,9 +1,11 @@
 package runner
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/cfpperche/agentdeck/internal/agent"
 	"github.com/cfpperche/agentdeck/internal/store"
@@ -84,7 +86,7 @@ func TestSDKShimMemoryAndPermission(t *testing.T) {
 	<-permDone
 	unsub()
 
-	if err := r.Control(ss.ID, reqID, "allow"); err != nil {
+	if err := r.Control(ss.ID, reqID, "allow", nil); err != nil {
 		t.Fatalf("Control: %v", err)
 	}
 	msgs = waitAssistant(t, st, ss.ID, 3)
@@ -99,5 +101,70 @@ func TestSDKShimMemoryAndPermission(t *testing.T) {
 	got, _ := st.GetSession(ss.ID)
 	if got.AgentRef == "" {
 		t.Error("agent_ref not captured from the shim")
+	}
+}
+
+func TestPermissionQueueAndEditedInput(t *testing.T) {
+	os.Remove("/tmp/agentdeck-edited-input.txt")
+	t.Setenv("FAKE_PARALLEL", "1")
+	r, st := newSDKRunner(t)
+
+	ss, _ := st.CreateSession("claude", "")
+	ch, unsub := r.Subscribe(ss.ID)
+	defer unsub()
+
+	if _, err := r.Send(ss.ID, "Two permissions test"); err != nil {
+		t.Fatal(err)
+	}
+
+	// collect BOTH permission events (queue order preserved);
+	// keep the subscription alive — Control() must wake the turn
+	var got []StreamEvent
+	timeout := time.After(8 * time.Second)
+collect:
+	for {
+		select {
+		case ev := <-ch:
+			if ev.Type == "permission" {
+				got = append(got, ev)
+				if len(got) == 2 {
+					break collect
+				}
+			}
+		case <-timeout:
+			t.Fatalf("expected 2 permission events, got %d", len(got))
+		}
+	}
+	if got[0].Tool != "Bash" || got[1].Tool != "Write" {
+		t.Fatalf("queue order wrong: %+v", got)
+	}
+	// late-subscriber snapshot replays the whole queue
+	if snap := r.PendingPermissions(ss.ID); len(snap) != 2 {
+		t.Fatalf("snapshot queue = %d, want 2", len(snap))
+	}
+
+	// answer the FIRST with an EDITED input (allow with edits)
+	edited := json.RawMessage(`{"command":"edited-cmd-42"}`)
+	if err := r.Control(ss.ID, got[0].RequestID, "allow", edited); err != nil {
+		t.Fatal(err)
+	}
+	// answer the second: deny
+	if err := r.Control(ss.ID, got[1].RequestID, "deny", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	msgs := waitAssistant(t, st, ss.ID, 1)
+	content := msgs[len(msgs)-1].Content
+	if content != "executed: edited-cmd-42 (+second denied)" {
+		t.Fatalf("turn content = %q", content)
+	}
+	// the edited input actually reached the fake (proof of updatedInput flow)
+	b, err := os.ReadFile("/tmp/agentdeck-edited-input.txt")
+	if err != nil || string(b) != "edited-cmd-42" {
+		t.Fatalf("edited input not honored: %v %q", err, string(b))
+	}
+	// queue drained
+	if q := r.PendingPermissions(ss.ID); len(q) != 0 {
+		t.Fatalf("queue not drained: %d", len(q))
 	}
 }

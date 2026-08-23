@@ -132,7 +132,7 @@ func TestLivePermissionRoundTrip(t *testing.T) {
 	}
 
 	// deny first → agent reports denial, no file
-	if err := r.Control(ss.ID, ev.RequestID, "deny"); err != nil {
+	if err := r.Control(ss.ID, ev.RequestID, "deny", nil); err != nil {
 		t.Fatal(err)
 	}
 	msgs := waitAssistant(t, st, ss.ID, 1)
@@ -152,7 +152,7 @@ func TestLivePermissionRoundTrip(t *testing.T) {
 		select {
 		case ev := <-ch:
 			if ev.Type == "permission" {
-				if err := r.Control(ss.ID, ev.RequestID, "allow"); err != nil {
+				if err := r.Control(ss.ID, ev.RequestID, "allow", nil); err != nil {
 					t.Fatal(err)
 				}
 				ok = true
@@ -206,7 +206,7 @@ func TestLiveCrashRestarts(t *testing.T) {
 func TestControlNoLiveProcess(t *testing.T) {
 	r, st := newLiveRunner(t, nil)
 	ss, _ := st.CreateSession("claude", "")
-	if err := r.Control(ss.ID, "x", "allow"); err == nil {
+	if err := r.Control(ss.ID, "x", "allow", nil); err == nil {
 		t.Error("expected error controlling a session with no live process")
 	}
 }
@@ -282,13 +282,13 @@ func TestWaitingStateTransitions(t *testing.T) {
 	}
 
 	// late subscriber sees the pending permission replay (G1)
-	if p := r.PendingPermission(ss.ID); p == nil || p.RequestID == "" {
+	if p := r.PendingPermissions(ss.ID); len(p) == 0 || p[0].RequestID == "" {
 		t.Fatal("PendingPermission missing during waiting")
 	}
 
 	// answer → running again → turn completes → idle
-	if p := r.PendingPermission(ss.ID); p != nil {
-		if err := r.Control(ss.ID, p.RequestID, "allow"); err != nil {
+	if p := r.PendingPermissions(ss.ID); len(p) > 0 {
+		if err := r.Control(ss.ID, p[0].RequestID, "allow", nil); err != nil {
 			t.Fatal(err)
 		}
 	}

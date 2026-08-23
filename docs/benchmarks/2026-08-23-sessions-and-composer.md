@@ -103,6 +103,25 @@ Priority: P0 dogfood blockers · P1 leverage · P2 strategic.
 | G12 | **Device pairing relay** (E2EE) beyond Tailscale assumption | P2 | paseo `packages/relay` |
 | G13 | **Web tests** — our repo has zero (t3code colocates `*.test.ts` everywhere) | P2 (rising) | both |
 
+### Postscript (G7 deep-dive, 2026-08-24): pending-user-input UX
+
+Receipts from t3code:
+- `apps/web/src/pendingUserInput.ts`: a *progress* model over a list of
+  `UserInputQuestion`s — activeQuestion, draft answer (customAnswer /
+  selectedOptionLabels), answeredCount/isLast/canAdvance. Editing is a
+  first-class draft, not an afterthought.
+- `ComposerPendingUserInputPanel.tsx`: the pending-input UI is ANCHORED
+  TO THE COMPOSER (where the user's attention already is), not a
+  floating banner; ChatComposer integrates it.
+- Contract shape (`UserInputQuestion`): options[], multiSelect,
+  Requested/Resolved payload pairs in `packages/contracts`.
+
+Applied to AgentDeck v2: keep our banner position (mobile-first
+thumb-zone) but adopt the draft-edit model (Allow with edits via
+`updatedInput`), a queue counter with navigation (1/N), and
+resolved-state feedback. multiSelect/options do not apply to our
+tool-permission flow (single decision), skipped deliberately.
+
 ## 4. What we keep (not everything is worth copying)
 
 - Our single-binary Go distribution and embedded UI — neither has that

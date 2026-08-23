@@ -9,6 +9,7 @@
 //   AGENTDECK_SDK_FAKE=1  drive FakeSDK instead of the real agent
 //   AGENTDECK_SDK_FAKE_*  behavior knobs (see fake.mjs)
 import { createRequire } from "node:module";
+import readline from "node:readline";
 const require = createRequire(import.meta.url);
 
 const emit = (o) => process.stdout.write(JSON.stringify(o) + "\n");
@@ -118,9 +119,12 @@ async function main() {
     },
   };
 
-  for await (const raw of process.stdin) {
-    await onLine(String(raw).trim(), handlers);
-  }
+  // CRITICAL: iterate stdin by LINE, not by chunk — a fast writer
+  // (the Go runner) coalesces multiple JSON messages into one pipe
+  // chunk, and JSON.parse of glued objects silently drops them all.
+  const rl = readline.createInterface({ input: process.stdin });
+  rl.on("line", (raw) => { onLine(String(raw).trim(), handlers); });
+  await new Promise((resolve) => rl.on("close", resolve));
   // stdin closed: AgentDeck is shutting us down
   process.exit(0);
 }

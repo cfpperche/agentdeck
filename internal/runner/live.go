@@ -130,6 +130,9 @@ func (r *Runner) pumpLive(sid string, adapter agent.Adapter, lp *liveProc, pr *o
 	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	for sc.Scan() {
 		line := sc.Text()
+		if os.Getenv("SHIMDEBUG") != "" {
+			fmt.Fprintf(os.Stderr, "[shim-raw] %s\n", line)
+		}
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -151,7 +154,7 @@ func (r *Runner) pumpLive(sid string, adapter agent.Adapter, lp *liveProc, pr *o
 				pev := StreamEvent{Type: "permission",
 					RequestID: ev.Ref, Tool: ev.Name, Input: ev.Detail}
 				r.mu.Lock()
-				r.pending[sid] = pev
+				r.pending[sid] = append(r.pending[sid], pev)
 				r.mu.Unlock()
 				r.setStatus(sid, StatusWaiting)
 				r.broadcast(sid, pev)
@@ -205,8 +208,9 @@ func (r *Runner) sendLive(sid string, adapter agent.Adapter, text string) error 
 	})
 }
 
-// Control answers a permission request (allow/deny) on a live session.
-func (r *Runner) Control(sid string, requestID, behavior string) error {
+// Control answers a permission request (allow/deny, with optional
+// edited input) on a live session. G7: updatedInput flows to the agent.
+func (r *Runner) Control(sid string, requestID, behavior string, updatedInput json.RawMessage) error {
 	r.mu.Lock()
 	lp := r.live[sid]
 	r.mu.Unlock()
@@ -216,17 +220,28 @@ func (r *Runner) Control(sid string, requestID, behavior string) error {
 	if behavior != "allow" && behavior != "deny" {
 		return fmt.Errorf("behavior must be allow or deny")
 	}
+	resp := map[string]any{"behavior": behavior}
+	if behavior == "allow" && len(updatedInput) > 0 {
+		var parsed any
+		if json.Unmarshal(updatedInput, &parsed) == nil {
+			resp["updatedInput"] = parsed
+		}
+	}
 	err := lp.write(map[string]any{
 		"type":       "control_response",
 		"request_id": requestID,
-		"response": map[string]any{
-			"behavior":     behavior,
-			"updatedInput": map[string]any{},
-		},
+		"response":   resp,
 	})
 	if err == nil {
 		r.mu.Lock()
-		delete(r.pending, sid)
+		q := r.pending[sid]
+		out := q[:0]
+		for _, p := range q {
+			if p.RequestID != requestID {
+				out = append(out, p)
+			}
+		}
+		r.pending[sid] = out
 		r.mu.Unlock()
 		r.setStatus(sid, StatusRunning) // G1: back to work
 	}

@@ -73,7 +73,7 @@ type Runner struct {
 	running map[string]context.CancelFunc // fallback cancels + live busy marker
 	live    map[string]*liveProc          // persistent tier-1 processes (ADR-0004)
 	state   map[string]SessionStatus
-	pending map[string]StreamEvent // latest unanswered permission per session
+	pending map[string][]StreamEvent // unanswered permission requests, in order
 	queues  map[string][]string    // messages waiting for the current turn
 	subs    map[string]map[chan StreamEvent]struct{}
 }
@@ -85,7 +85,7 @@ func New(reg *agent.Registry, st *store.Store, workspaces string) *Runner {
 		running: map[string]context.CancelFunc{},
 		live:    map[string]*liveProc{},
 		state:   map[string]SessionStatus{},
-		pending: map[string]StreamEvent{},
+		pending: map[string][]StreamEvent{},
 		queues:  map[string][]string{},
 		subs:    map[string]map[chan StreamEvent]struct{}{},
 	}
@@ -143,16 +143,14 @@ func (r *Runner) broadcast(sid string, ev StreamEvent) {
 	}
 }
 
-// PendingPermission returns the unanswered permission event for a
-// session (for late SSE subscribers), or nil.
-func (r *Runner) PendingPermission(sid string) *StreamEvent {
+// PendingPermissions returns all unanswered permission events for a
+// session (for late SSE subscribers), in order.
+func (r *Runner) PendingPermissions(sid string) []StreamEvent {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if ev, ok := r.pending[sid]; ok {
-		e := ev
-		return &e
-	}
-	return nil
+	out := make([]StreamEvent, len(r.pending[sid]))
+	copy(out, r.pending[sid])
+	return out
 }
 
 // Send delivers a message or queues it while a turn is in flight

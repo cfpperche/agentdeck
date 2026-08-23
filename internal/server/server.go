@@ -205,14 +205,15 @@ func (s *Server) handleStop(w http.ResponseWriter, r *http.Request) {
 // {"request_id": "...", "behavior": "allow"|"deny"}
 func (s *Server) handleControl(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		RequestID string `json:"request_id"`
-		Behavior  string `json:"behavior"`
+		RequestID    string          `json:"request_id"`
+		Behavior     string          `json:"behavior"`
+		UpdatedInput json.RawMessage `json:"updatedInput"`
 	}
 	if err := readBody(r, &in); err != nil || in.RequestID == "" {
 		writeErr(w, 400, "request_id required")
 		return
 	}
-	if err := s.Runner.Control(r.PathValue("id"), in.RequestID, in.Behavior); err != nil {
+	if err := s.Runner.Control(r.PathValue("id"), in.RequestID, in.Behavior, in.UpdatedInput); err != nil {
 		writeErr(w, 409, err.Error())
 		return
 	}
@@ -247,7 +248,7 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	snapshot, _ := json.Marshal(runner.StreamEvent{
 		Type: "state", Status: string(st), Running: st != runner.StatusIdle})
 	w.Write([]byte("data: " + string(snapshot) + "\n\n"))
-	if pev := s.Runner.PendingPermission(id); pev != nil {
+	for _, pev := range s.Runner.PendingPermissions(id) {
 		if b, err := json.Marshal(pev); err == nil {
 			w.Write([]byte("data: " + string(b) + "\n\n"))
 		}

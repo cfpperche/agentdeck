@@ -59,6 +59,13 @@ the SQLite schema — it stays until parity is proven in the field.
 
 ## Bodies buried
 
+-1. **Shim stdin MUST be line-framed** (readline), never chunk-iterated:
+    the Go runner writes user + control_response frames close together
+    and the pipe coalesces them; JSON.parse of glued objects fails
+    silently. Symptom: turns hang with permissions answered. Any new
+    shim-side reader repeats this bug — the readline fix is load-bearing.
+
+
 0. **Queue is memory-only**: queued messages persist to chat history
    immediately but delivery state does not survive an AgentDeck
    restart (undelivered ones remain as unanswered user messages).

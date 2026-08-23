@@ -15,7 +15,9 @@ export function App() {
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState("idle"); // idle | running | waiting
   const [queuedCount, setQueuedCount] = useState(0);
-  const [permission, setPermission] = useState(null); // pending approval (ADR-0004)
+  const [permissions, setPermissions] = useState([]); // pending approvals queue (G7)
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -82,7 +84,7 @@ export function App() {
       }
       else if (ev.type === "queue") setQueuedCount(ev.count || 0);
       else if (ev.type === "permission") {
-        setPermission({ request_id: ev.request_id, tool: ev.tool, input: ev.input });
+        setPermissions((q) => [...q, { request_id: ev.request_id, tool: ev.tool, input: ev.input }]);
       }
       else if (ev.type === "text")
         setStream((s) => ({ text: (s?.text || "") + ev.content, tools: s?.tools || [] }));
@@ -133,10 +135,22 @@ export function App() {
   };
 
   const answerPermission = (behavior) => {
-    if (!permission) return;
-    api.control(activeId, permission.request_id, behavior)
-      .then(() => setPermission(null))
+    const p = permissions[0];
+    if (!p) return;
+    let updatedInput;
+    if (behavior === "allow" && editing && editText.trim()) {
+      try { updatedInput = JSON.parse(editText); }
+      catch { showToast("edited input is not valid JSON"); return; }
+    }
+    api.control(activeId, p.request_id, behavior, updatedInput)
+      .then(() => { setPermissions((q) => q.slice(1)); setEditing(false); setEditText(""); })
       .catch((e) => showToast(e.detail || "failed to answer"));
+  };
+  const startEditing = () => {
+    const p = permissions[0];
+    if (!p) return;
+    setEditing(true);
+    setEditText(p.input || "{}");
   };
 
   return (
@@ -252,28 +266,60 @@ export function App() {
           </button>
         )}
 
-        {permission && (
-          <div class="px-3 md:px-6 pt-3 max-w-3xl mx-auto w-full">
-            <div class="rounded-xl border px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
-              style={{ background: "var(--warn-soft)", borderColor: "var(--warn-border)" }}>
-              <div class="flex-1 min-w-0">
-                <div class="text-sm font-medium flex items-center gap-2" style={{ color: "var(--warn)" }}>
-                  <span class="h-2 w-2 rounded-full animate-pulse" style={{ background: "var(--warn)" }} />
-                  {permission.tool} permission requested
+        {permissions.length > 0 && (() => {
+          const p = permissions[0];
+          return (
+            <div class="px-3 md:px-6 pt-3 max-w-3xl mx-auto w-full">
+              <div class="rounded-xl border px-4 py-3 flex flex-col gap-3"
+                style={{ background: "var(--warn-soft)", borderColor: "var(--warn-border)" }}>
+                <div class="flex items-start gap-3">
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium flex items-center gap-2" style={{ color: "var(--warn)" }}>
+                      <span class="h-2 w-2 rounded-full animate-pulse" style={{ background: "var(--warn)" }} />
+                      {p.tool} permission requested
+                      {permissions.length > 1 && (
+                        <span class="text-[11px] font-normal" style={{ color: "var(--text-2)" }}>
+                          1 of {permissions.length} — answer to continue
+                        </span>
+                      )}
+                    </div>
+                    <code class="block mt-1 text-[12px] font-mono truncate" style={{ color: "var(--text-2)" }}>{p.input}</code>
+                  </div>
+                  <button onClick={startEditing}
+                    class="text-[11px] shrink-0 h-7 px-2.5 rounded-md surface"
+                    style={{ color: "var(--text-2)", border: "1px solid var(--border)" }}>
+                    {editing ? "cancel edit" : "edit input"}
+                  </button>
                 </div>
-                <code class="block mt-1 text-[12px] font-mono truncate" style={{ color: "var(--text-3)" }}>{permission.input}</code>
-              </div>
-              <div class="flex gap-2 shrink-0">
-                <button onClick={() => answerPermission("allow")}
-                  class="h-9 px-4 rounded-lg text-sm font-medium transition-colors"
-                  style={{ background: "var(--ok)", color: "#fff" }}>Allow</button>
-                <button onClick={() => answerPermission("deny")}
-                  class="h-9 px-4 rounded-lg text-sm font-medium border transition-colors"
-                  style={{ borderColor: "var(--err-border)", color: "var(--err)" }}>Deny</button>
+                {editing && (
+                  <div>
+                    <textarea
+                      value={editText}
+                      onInput={(e) => setEditText(e.target.value)}
+                      rows="3"
+                      spellCheck="false"
+                      class="w-full rounded-lg px-3 py-2 text-[12px] font-mono focus:outline-none"
+                      style={{ background: "var(--code-bg)", color: "var(--text-1)", border: "1px solid var(--border)" }}
+                    />
+                    <p class="text-[11px] mt-1" style={{ color: "var(--text-3)" }}>
+                      edited JSON is sent as updatedInput on Allow
+                    </p>
+                  </div>
+                )}
+                <div class="flex gap-2 justify-end">
+                  <button onClick={() => answerPermission("allow")}
+                    class="h-9 px-4 rounded-lg text-sm font-medium transition-colors"
+                    style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-fg)" }}>
+                    {editing ? "Allow with edits" : "Allow"}
+                  </button>
+                  <button onClick={() => answerPermission("deny")}
+                    class="h-9 px-4 rounded-lg text-sm font-medium border transition-colors"
+                    style={{ borderColor: "var(--err-border)", color: "var(--err)" }}>Deny</button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
         {active && (
           <Composer running={running} onSend={send} onStop={() => api.stop(activeId).then(refreshSessions)} sessionId={activeId} />
         )}

@@ -7,6 +7,16 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Permission banner v2** (G7, issue #7): pending approvals are a
+  QUEUE (counter "1 of N" when multiple, late-subscriber SSE snapshot
+  replays the whole queue), and Allow can carry **edited input** —
+  "edit input" opens a JSON textarea; "Allow with edits" sends it as
+  `updatedInput`, which the agent executes (validated end-to-end:
+  edited command reached the fake SDK's executor).
+- Critical shim fix: stdin is now parsed **by line** (readline) —
+  `for await (chunk)` silently dropped messages when the Go writer
+  coalesced multiple JSON messages into one pipe chunk (found via a
+  reproduced race: fast control_responses glued to the user message).
 - **Claude driver via Agent SDK** (ADR-0005, issue #5): a vendored
   Node shim (`agent-sdk-shim/`) drives the real claude through
   `@anthropic-ai/claude-agent-sdk` while speaking AgentDeck's existing

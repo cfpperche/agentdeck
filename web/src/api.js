@@ -24,11 +24,13 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
     }).then(json),
-  control: (id, requestId, behavior) =>
+  control: (id, requestId, behavior, updatedInput) =>
     fetch(`/api/sessions/${id}/control`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ request_id: requestId, behavior }),
+      body: JSON.stringify(updatedInput
+        ? { request_id: requestId, behavior, updatedInput }
+        : { request_id: requestId, behavior }),
     }).then(json),
   stop: (id) => fetch(`/api/sessions/${id}/stop`, { method: "POST" }).then(json),
   clearQueue: (id) =>
