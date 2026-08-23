@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/cfpperche/agentdeck/internal/agent"
@@ -149,6 +150,17 @@ func (r *Runner) pump(sid string, adapter agent.Adapter, argv []string, cwd stri
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Dir = cwd
 	cmd.Env = append(os.Environ(), "NO_COLOR=1")
+	// own process group + group-kill: agents spawn children that inherit
+	// the pipe; killing only the parent leaves the pipe open (scanner
+	// blocks until the child exits — caught by CI on TestStopPersistsPartial)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		if cmd.Process != nil {
+			return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
+		return os.ErrProcessDone
+	}
+	cmd.WaitDelay = 3 * time.Second
 	// explicit pipe: merge stderr into the same stream (agents print
 	// diagnostics like 'No session found' on stderr)
 	pr, pw, err := os.Pipe()
