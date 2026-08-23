@@ -118,8 +118,32 @@ func ensureCert(dataDir string) (tls.Certificate, error) {
 		NotAfter:     time.Now().AddDate(10, 0, 0),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
-		DNSNames:     []string{"localhost"},
+	}
+	// SANs: localhost + every local IPv4 (LAN + tailnet), so trusting
+	// this one cert covers all access routes
+	tmpl.IPAddresses = append(tmpl.IPAddresses,
+		net.ParseIP("127.0.0.1"), net.ParseIP("::1"))
+	tmpl.DNSNames = []string{"localhost"}
+	seen := map[string]bool{}
+	ifaces, _ := net.Interfaces()
+	for _, ifc := range ifaces {
+		addrs, _ := ifc.Addrs()
+		for _, a := range addrs {
+			var ip net.IP
+			switch v := a.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.To4() == nil || ip.IsLoopback() {
+				continue
+			}
+			if !seen[ip.String()] {
+				seen[ip.String()] = true
+				tmpl.IPAddresses = append(tmpl.IPAddresses, ip)
+			}
+		}
 	}
 	der, err := x509.CreateCertificate(rand.Reader, &tmpl, &tmpl,
 		&key.PublicKey, key)

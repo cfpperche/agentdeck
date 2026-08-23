@@ -7,6 +7,10 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- Self-signed certificate now covers localhost, LAN and tailnet IPs
+  (all local IPv4 SANs) — trusting it once in the OS removes browser
+  warnings on every access route (incl. VS Code Simple Browser, which
+  has no cert bypass button).
 - **Runner v2 / live sessions (ADR-0004, tier 1)**: tier-1 agents
   (claude) now run as persistent bidirectional processes — the web UI
   is a native client of the agent protocol, like the TUIs.
