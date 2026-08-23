@@ -18,10 +18,25 @@ make lint      # go vet ./...
 make clean     # remove artifacts (restores web/dist stub)
 ```
 
-- Go 1.22+ (`go.mod`), Node 22+ for the web build (`web/`).
+- Go 1.22+ (`go.mod`), Node 22+ for the web build (`web/`). The SPA is
+  plain JSX today; the TypeScript migration promised by ADR-0003 is still
+  pending — do not start it unprompted.
 - Server listens on `https://localhost:8444` with an auto-generated
   self-signed cert. Web tests with a browser must ignore cert errors
-  (see the agent-browser skill).
+  (see the agent-browser skill). `AGENTDECK_INSECURE=1` disables TLS for
+  dev/behind-proxy setups.
+
+### Running against fake agents (biggest dev lever)
+
+Point any agent slot at a fake via the env override — no tokens, no auth:
+
+```bash
+AGENTDECK_BIN_CLAUDE=$PWD/tests/fakes/fake-claude ./bin/agentdeck
+```
+
+The fakes emit the recorded JSONL of each CLI; the whole UI/backend can be
+exercised end-to-end deterministically. This is the same mechanism the unit
+tests use (`AGENTDECK_BIN_*`).
 
 ## Architecture
 
@@ -67,6 +82,24 @@ with the **agent-browser** skill (`.pi/skills/agent-browser/`):
 `make dev-go`, then open `https://localhost:8444` with
 `--ignore-https-errors`, act via `snapshot` refs, confirm with a
 `screenshot`. Prefer this over describing what the code "should" render.
+
+## Keeping docs in sync (mandatory)
+
+Documentation is part of the change, not an afterthought. A PR that changes
+behavior and not docs is incomplete:
+
+- **Any user-visible change** → add a line under `[Unreleased]` in
+  `CHANGELOG.md` (Keep a Changelog format).
+- **New/changed command, env var or architecture piece** → update this file
+  (`AGENTS.md`) in the same commit.
+- **User-facing install/usage change** → update `README.md`.
+- **Decision changes** → do not rewrite accepted ADRs; write a new one that
+  supersedes the old (mark the old `Superseded by ADR-XXXX`).
+- **Session boundaries** → if you hand off mid-task, update
+  `docs/HANDOFF.md` so the next agent (or human) can pick up cold.
+
+Rule of thumb: if a fresh clone + `AGENTS.md` + `docs/HANDOFF.md` wouldn't
+let you reproduce your own workflow, the docs are behind.
 
 ## Conventions
 

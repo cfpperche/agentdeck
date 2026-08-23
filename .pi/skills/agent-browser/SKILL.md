@@ -48,16 +48,42 @@ agent-browser close               # Close the browser session
 
 ## Tips
 
-- Refs from `snapshot` (like `@e3`) are the most reliable way to target elements.
+- **Refs go stale after any action that changes the page** (clicks, typing,
+  navigation, React re-renders). Snapshot again before every action — a
+  `@ref` from an older snapshot may target nothing or the wrong element.
 - Prefer `snapshot` over `screenshot` for acting; use screenshots to verify visuals.
 - Session persists across commands — no need to re-open the URL between steps.
+- **Zombie discipline**: sessions survive aborted tasks. Start tricky work with
+  `close` (a failed close is harmless) and always `close` before finishing —
+  otherwise a headless Chromium keeps running on the host.
+
+## Setup & fallback
+
+Requires the CLI (not installed by this repo):
+
+```bash
+npm install -g agent-browser
+```
+
+No CLI? Fallback for visual checks (no interaction, screenshot only):
+
+```bash
+google-chrome --headless=new --no-sandbox --ignore-certificate-errors \
+  --window-size=1440,900 --screenshot=out.png https://localhost:8444
+```
 
 ## Testing AgentDeck itself
 
-The dev server uses a self-signed certificate. Pass the flag once per session:
+Two dev routes, pick either:
 
 ```bash
+# A) Go server (:8444, HTTPS self-signed) — pass the flag once per session:
 agent-browser open https://localhost:8444 --ignore-https-errors
+#    (or export AGENT_BROWSER_IGNORE_HTTPS_ERRORS=1)
+
+# B) Vite dev server (:5173, plain HTTP, hot reload) — no flag needed:
+agent-browser open http://localhost:5173
 ```
 
-(Or `export AGENT_BROWSER_IGNORE_HTTPS_ERRORS=1` before starting the session.)
+Tip: `AGENTDECK_INSECURE=1 ./bin/agentdeck` serves the Go server over plain
+HTTP when you want to skip certificate handling entirely.

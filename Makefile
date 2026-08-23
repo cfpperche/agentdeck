@@ -21,7 +21,6 @@ dev:
 	python3 -m legacy.backend.__main__
 
 dev-go: build-go
-	AGENTDECK_DATA ?= $(HOME)/agentdeck/data
 	./bin/agentdeck
 
 web:
@@ -34,5 +33,7 @@ lint:
 	go vet ./...
 
 clean:
-	rm -rf bin web/dist/*
-	@[ -f web/dist/index.html ] || cp .github/stub-index.html web/dist/index.html 2>/dev/null || true
+	rm -rf bin
+	@# keep the tracked index.html stub — go:embed needs a non-empty web/dist
+	@find web/dist -mindepth 1 ! -name 'index.html' -delete 2>/dev/null || true
+	@test -f web/dist/index.html || git checkout -- web/dist/index.html

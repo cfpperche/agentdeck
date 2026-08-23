@@ -37,6 +37,14 @@ When porting or adding an adapter: write the fake first, then the parser,
 then the adapter. Bug fixes come with a regression test that fails
 before the fix.
 
+You can also run the real server against fakes end-to-end:
+`AGENTDECK_BIN_CLAUDE=$PWD/tests/fakes/fake-claude ./bin/agentdeck`.
+
+**UI verification** uses the [agent-browser](https://www.npmjs.com/package/agent-browser)
+CLI (`npm i -g agent-browser`) — see `.pi/skills/agent-browser/SKILL.md`;
+a plain headless-Chrome screenshot works as fallback. `AGENTDECK_INSECURE=1`
+disables TLS when you don't want to handle the self-signed cert.
+
 ## Architecture pointers
 
 - `docs/adr/` — why things are the way they are (read before "why don't
