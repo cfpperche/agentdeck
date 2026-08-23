@@ -7,6 +7,11 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **URL-routed sessions** (G4, issue #4): sessions live at `/s/<id>` —
+  back/forward and reload work; legacy `?s=` deep-links normalize in
+  place. (History API; the Go SPA fallback serves the app on any path.)
+- **Composer draft persistence** (G2, issue #2): per-session drafts in
+  localStorage — survive reloads and session switches, cleared on send.
 - **Session state machine** (`idle | running | waiting`) — the SSE
   `state` event carries `status` (G1, issue #1). `waiting` = a turn is
   in flight AND the agent asked for approval; late subscribers get the

@@ -280,9 +280,20 @@ export function Message({ m }) {
   );
 }
 
-export function Composer({ running, onSend, onStop, disabled }) {
+export function Composer({ running, onSend, onStop, disabled, sessionId }) {
   const [text, setText] = useState("");
   const ref = useRef(null);
+
+  // draft persistence (G2): per-session draft survives reloads and
+  // session switches; cleared on send
+  const draftKey = sessionId ? `agentdeck:draft:${sessionId}` : null;
+  useEffect(() => {
+    setText(draftKey ? localStorage.getItem(draftKey) || "" : "");
+  }, [draftKey]);
+  useEffect(() => {
+    if (draftKey && text) localStorage.setItem(draftKey, text);
+  }, [text, draftKey]);
+
   useEffect(() => {
     if (ref.current) {
       ref.current.style.height = "auto";
@@ -296,6 +307,7 @@ export function Composer({ running, onSend, onStop, disabled }) {
     if (!text.trim() || disabled) return;
     onSend(text.trim());
     setText("");
+    if (draftKey) localStorage.removeItem(draftKey);
   };
 
   return (

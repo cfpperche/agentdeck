@@ -27,13 +27,34 @@ export function App() {
     api.sessions().then(setSessions).catch(() => {});
   }, []);
 
+  // ---- URL routing (G4): /s/<id> with working back/forward ----
+  const sidFromURL = () => {
+    const m = location.pathname.match(/^\/s\/([A-Za-z0-9]+)/);
+    if (m) return m[1];
+    return new URLSearchParams(location.search).get("s"); // legacy ?s=
+  };
+
   useEffect(() => {
     api.agents().then(setAgents).catch(() => {});
     refreshSessions();
-    // deep-link support: /?s=<session-id>
-    const s = new URLSearchParams(location.search).get("s");
-    if (s) setActiveId(s);
+    const s = sidFromURL();
+    if (s) {
+      setActiveId(s);
+      if (location.search) // normalize legacy deep-links in place
+        history.replaceState({}, "", `/s/${s}`);
+    }
   }, []);
+
+  useEffect(() => {
+    const onPop = () => setActiveId(sidFromURL());
+    addEventListener("popstate", onPop);
+    return () => removeEventListener("popstate", onPop);
+  }, []);
+
+  useEffect(() => {
+    const want = activeId ? `/s/${activeId}` : "/";
+    if (location.pathname !== want) history.pushState({}, "", want);
+  }, [activeId]);
 
   useEffect(() => {
     esRef.current?.close();
@@ -230,7 +251,7 @@ export function App() {
           </div>
         )}
         {active && (
-          <Composer running={running} onSend={send} onStop={() => api.stop(activeId).then(refreshSessions)} />
+          <Composer running={running} onSend={send} onStop={() => api.stop(activeId).then(refreshSessions)} sessionId={activeId} />
         )}
       </main>
 
