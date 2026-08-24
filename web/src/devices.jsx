@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export function DevicesPanel() {
+export function DevicesPanel({ onClose }) {
   const [list, setList] = useState([]);
   useEffect(() => {
     let on = true;
@@ -14,7 +14,18 @@ export function DevicesPanel() {
   return (
     <div class="flex-1 overflow-y-auto">
       <div class="max-w-xl mx-auto px-6 py-10">
-        <h1 class="text-lg font-semibold mb-6" style={{ color: "var(--text-1)" }}>Devices</h1>
+        <div class="flex items-center gap-2 mb-6">
+          <button
+            onClick={onClose}
+            class="h-8 w-8 grid place-items-center rounded-lg transition-colors hover:bg-[color:var(--bg-hover)]"
+            style={{ color: "var(--text-2)" }}
+            aria-label="back"
+            title="back"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <h1 class="text-lg font-semibold" style={{ color: "var(--text-1)" }}>Devices</h1>
+        </div>
         <h2 class="text-[13px] font-semibold mb-2" style={{ color: "var(--text-2)" }}>This machine</h2>
         <DeviceList items={host} empty="This browser is not pinging yet." />
         <h2 class="text-[13px] font-semibold mt-8 mb-2" style={{ color: "var(--text-2)" }}>Other devices</h2>

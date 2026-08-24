@@ -237,6 +237,10 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
   (see `AGENTS.md`).
 
 ### Fixed
+- **/devices and /settings trapped the view**: selecting a tab, home or
+  a sidebar session no longer leaves those overlay pages stuck over the
+  agent view; both panels gained an explicit back button (reachable
+  even with zero tabs open).
 - Ghost toolbar band: the (now state-only) chat toolbar rendered even
   when empty on desktop — a ~59px gray strip under the tab bar, taller
   than the tab bar itself (user report). It now renders only when it

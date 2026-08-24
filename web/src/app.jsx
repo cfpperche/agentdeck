@@ -21,6 +21,7 @@ export function App() {
   const [activeId, setActiveId] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [devicesOpen, setDevicesOpen] = useState(false);
+  const closeOverlays = () => { setSettingsOpen(false); setDevicesOpen(false); };
   const [shareOpen, setShareOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -132,7 +133,7 @@ export function App() {
 
   // ---- actions ----
   const openSession = (id) => {
-    setSettingsOpen(false);
+    closeOverlays();
     const ids = openTabs.map((t) => t.id);
     if (!ids.includes(id)) setOpenTabsAndActive([...ids, id], id);
     else setOpenTabsAndActive(ids, id);
@@ -175,7 +176,7 @@ export function App() {
         filter={filter}
         setFilter={setFilter}
         onOpen={openSession}
-        onNew={() => { setSettingsOpen(false); openNewSessionTab(); }}
+        onNew={() => { closeOverlays(); openNewSessionTab(); }}
         onRename={(id, t) => api.renameSession(id, t).then(refreshSessions)}
         onDelete={(id) => {
           api.deleteSession(id).then(() => {
@@ -187,7 +188,7 @@ export function App() {
         setOpen={setSidebarOpen}
         theme={theme.current}
         onToggleTheme={theme.toggle}
-        onOpenSettings={() => { setDevicesOpen(false); setSettingsOpen(true); setActiveId(null); history.pushState({}, "", "/settings"); }}
+        onOpenSettings={() => { closeOverlays(); setSettingsOpen(true); setActiveId(null); history.pushState({}, "", "/settings"); }}
         onOpenDevices={() => { setSettingsOpen(false); setDevicesOpen(true); setActiveId(null); history.pushState({}, "", "/devices"); }}
       />
 
@@ -202,7 +203,7 @@ export function App() {
             return (
               <div
                 key={t.id}
-                onClick={() => { setSettingsOpen(false); setOpenTabsAndActive(openTabs.map((x) => x.id), t.id); }}
+                onClick={() => { closeOverlays(); setOpenTabsAndActive(openTabs.map((x) => x.id), t.id); }}
                 class={`group flex items-center gap-2 pl-3 pr-1.5 cursor-pointer text-[12.5px] shrink-0 max-w-[220px] surface ${active ? "" : "hover:bg-[color:var(--bg-hover)]"}`}
                 style={{
                   borderRight: "1px solid var(--border-soft)",
@@ -232,7 +233,7 @@ export function App() {
           {/* new tab = home (hidden when no tabs: the screen IS home) */}
           {openTabs.length > 0 && (
           <div
-            onClick={() => { setSettingsOpen(false); setOpenTabsAndActive(openTabs.map((x) => x.id), null); }}
+            onClick={() => { closeOverlays(); setOpenTabsAndActive(openTabs.map((x) => x.id), null); }}
             class="flex items-center px-3 cursor-pointer text-[12.5px] shrink-0 surface"
             style={{
               borderRight: "1px solid var(--border-soft)",
@@ -249,9 +250,9 @@ export function App() {
 
         {/* views: all tabs stay mounted; hidden ones keep their state */}
         {settingsOpen ? (
-          <SettingsPanel themePref={theme.pref} currentTheme={theme.current} onSetTheme={theme.setPref} />
+          <SettingsPanel themePref={theme.pref} currentTheme={theme.current} onSetTheme={theme.setPref} onClose={() => { closeOverlays(); history.pushState({}, "/"); }} />
         ) : devicesOpen ? (
-          <DevicesPanel />
+          <DevicesPanel onClose={() => { closeOverlays(); history.pushState({}, "/"); }} />
         ) : activeId === NEW_TAB_ID ? (
           <NewSessionPanel
             agents={agents}
