@@ -23,6 +23,30 @@ const onLine = async (raw, handlers) => {
 
 const pendingPermissions = new Map(); // request_id -> resolve(result)
 
+// Composer surface (ADR-0006): what this runtime offers the UI.
+// Models are the SDK's alias strings; thinking = extended thinking
+// toggle; modes are the permission modes valid in the SDK (no 'ask').
+function capabilities() {
+  const think = [
+    { id: "off", label: "Standard" },
+    { id: "on", label: "Extended thinking" },
+  ];
+  return {
+    type: "capabilities",
+    models: [
+      { id: "sonnet", label: "Sonnet", is_default: true, thinking_options: think },
+      { id: "opus", label: "Opus", thinking_options: think },
+      { id: "haiku", label: "Haiku" },
+    ],
+    modes: [
+      { id: "manual", label: "Ask before edits", description: "Every tool call asks (default)" },
+      { id: "acceptEdits", label: "Auto-accept edits", description: "File edits apply without asking" },
+      { id: "plan", label: "Plan only", description: "Reads and research, no changes" },
+      { id: "bypassPermissions", label: "Full access", description: "No permission prompts at all" },
+    ],
+  };
+}
+
 function normalize(message, ctx) {
   // ctx: { sessionIdRef } — updated from sdk-init
   const out = [];
@@ -63,6 +87,7 @@ async function main() {
   let resume = process.env.AGENTDECK_SDK_RESUME || undefined;
 
   emit({ type: "shim-ready", mode: useFake ? "fake" : "sdk" });
+  emit(capabilities());
 
   const runTurn = async (text) => {
     const q = await query({

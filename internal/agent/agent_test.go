@@ -40,6 +40,16 @@ func TestParseClaude(t *testing.T) {
 			`{"type":"result","subtype":"error_max_turns","result":"hit turn limit"}`,
 			[]Event{{Kind: KindError, Content: "hit turn limit"}},
 		},
+		{
+			"capabilities parsed (ADR-0006)",
+			`{"type":"capabilities","models":[{"id":"sonnet","label":"Sonnet","is_default":true,"thinking_options":[{"id":"on","label":"Extended thinking"}]}],"modes":[{"id":"manual","label":"Ask before edits"}]}`,
+			[]Event{{Kind: KindCaps, Caps: &Capabilities{
+				Models: []ModelDef{{ID: "sonnet", Label: "Sonnet", IsDefault: true,
+					ThinkingOptions: []SelectOption{{ID: "on", Label: "Extended thinking"}}}},
+				Modes: []ModeDef{{ID: "manual", Label: "Ask before edits"}},
+			}}},
+		},
+		{"empty capabilities dropped", `{"type":"capabilities","models":[],"modes":[]}`, nil},
 		{"garbage ignored", `not json at all`, nil},
 	}
 	runParserTests(t, "claude", tests)

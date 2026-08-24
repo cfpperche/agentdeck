@@ -62,6 +62,10 @@ curl -sf -X POST "$BASE/api/sessions" -H 'Content-Type: application/json' \
   -d "{\"agent\":\"claude\",\"cwd\":\"$D/sub\"}" | grep -q '"cwd"' || fail "create with cwd"
 rm -rf "$D"
 
+# 4b. composer surface (ADR-0006): capabilities event on the SSE stream
+CAPS=$(timeout 3 curl -sfN "$BASE/api/sessions/$SID/events" | head -c 4000 | grep -o '"type":"capabilities"' | head -1 || true)
+[ -n "$CAPS" ] || fail "capabilities on SSE"
+
 # 5. port info + reject range via UI contract
 curl -sf "$BASE/api/server/port" | grep -q serving || fail "port info"
 CODE=$(curl -s -o /dev/null -w '%{http_code}' -X PUT "$BASE/api/server/port" \

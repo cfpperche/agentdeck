@@ -155,6 +155,13 @@ func (r *Runner) pumpLive(sid string, adapter agent.Adapter, lp *liveProc, pr *o
 				r.mu.Unlock()
 				r.setStatus(sid, StatusWaiting)
 				r.broadcast(sid, pev)
+			case agent.KindCaps:
+				// composer surface: remember for late subscribers and push.
+				r.mu.Lock()
+				r.caps[sid] = ev.Caps
+				r.mu.Unlock()
+				r.broadcast(sid, StreamEvent{Type: "capabilities",
+					Models: ev.Caps.Models, Modes: ev.Caps.Modes})
 			case agent.KindFinal:
 				final = ev.Content
 			case agent.KindError:

@@ -20,6 +20,7 @@ const (
 	KindFinal   = "final" // authoritative final text (turn end)
 	KindError   = "error"
 	KindControl = "control" // agent asks the user (permission request)
+	KindCaps    = "capabilities" // composer surface reported at startup
 )
 
 // Event is the normalized stream unit. Kind discriminates the payload.
@@ -30,6 +31,39 @@ type Event struct {
 	Name    string `json:"name,omitempty"`  // tool name
 	State   string `json:"state,omitempty"` // start | end
 	Detail  string `json:"detail,omitempty"`
+	Caps    *Capabilities `json:"capabilities,omitempty"`
+}
+
+// Capabilities is the composer surface an agent reports (ADR-0006):
+// which models, reasoning variants and named modes it supports. The
+// shim/fake emit it once at startup; parsers pass it through.
+type Capabilities struct {
+	Models []ModelDef `json:"models"`
+	Modes  []ModeDef  `json:"modes"`
+}
+
+// ModelDef mirrors paseo's AgentModelDefinition: a selectable model
+// with optional nested thinking/reasoning variants.
+type ModelDef struct {
+	ID                      string         `json:"id"`
+	Label                   string         `json:"label"`
+	IsDefault               bool           `json:"is_default,omitempty"`
+	ThinkingOptions         []SelectOption `json:"thinking_options,omitempty"`
+	DefaultThinkingOptionID string         `json:"default_thinking_option_id,omitempty"`
+}
+
+// ModeDef is a named permission mode (human label, not jargon).
+type ModeDef struct {
+	ID          string `json:"id"`
+	Label       string `json:"label"`
+	Description string `json:"description,omitempty"`
+}
+
+// SelectOption is one variant inside ModelDef.ThinkingOptions.
+type SelectOption struct {
+	ID        string `json:"id"`
+	Label     string `json:"label"`
+	IsDefault bool   `json:"is_default,omitempty"`
 }
 
 // Adapter couples a CLI agent binary with its wire format.

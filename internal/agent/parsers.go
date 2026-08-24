@@ -109,6 +109,13 @@ func parseClaude(line string) []Event {
 				out = append(out, Event{Kind: KindRef, Ref: id})
 			}
 		}
+	case "capabilities":
+		if b, err := json.Marshal(ev); err == nil {
+			var caps Capabilities
+			if json.Unmarshal(b, &caps) == nil && (len(caps.Models) > 0 || len(caps.Modes) > 0) {
+				out = append(out, Event{Kind: KindCaps, Caps: &caps})
+			}
+		}
 	case "assistant":
 		msg, _ := ev["message"].(map[string]any)
 		for _, b := range blocks(msg["content"]) {

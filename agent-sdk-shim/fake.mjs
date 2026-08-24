@@ -16,6 +16,18 @@ export async function query({ prompt, options }) {
 
   const low = prompt.toLowerCase();
   messages.push({ type: "system", subtype: "init", session_id: sid });
+  messages.push({
+    type: "capabilities",
+    models: [
+      { id: "sonnet", label: "Fake Sonnet", is_default: true,
+        thinking_options: [{ id: "off", label: "Standard" }, { id: "on", label: "Thinking" }] },
+      { id: "haiku", label: "Fake Haiku" },
+    ],
+    modes: [
+      { id: "manual", label: "Ask before edits" },
+      { id: "acceptEdits", label: "Auto-accept edits" },
+    ],
+  });
 
   let text;
   if (low.startsWith("remember:")) {

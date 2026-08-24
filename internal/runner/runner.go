@@ -59,6 +59,10 @@ type StreamEvent struct {
 	Tool      string         `json:"tool,omitempty"`
 	Input     string         `json:"input,omitempty"`
 	Count     int            `json:"count,omitempty"` // queue events
+
+	// composer surface (ADR-0006), carried by type:"capabilities"
+	Models []agent.ModelDef `json:"models,omitempty"`
+	Modes  []agent.ModeDef  `json:"modes,omitempty"`
 }
 
 const taskTimeout = 10 * time.Minute
@@ -73,6 +77,7 @@ type Runner struct {
 	live    map[string]*liveProc          // persistent tier-1 processes (ADR-0004)
 	state   map[string]SessionStatus
 	pending map[string][]StreamEvent // unanswered permission requests, in order
+	caps    map[string]*agent.Capabilities // last reported composer surface
 	queues  map[string][]string      // messages waiting for the current turn
 	subs    map[string]map[chan StreamEvent]struct{}
 }
@@ -85,6 +90,7 @@ func New(reg *agent.Registry, st *store.Store, workspaces string) *Runner {
 		live:    map[string]*liveProc{},
 		state:   map[string]SessionStatus{},
 		pending: map[string][]StreamEvent{},
+		caps:    map[string]*agent.Capabilities{},
 		queues:  map[string][]string{},
 		subs:    map[string]map[chan StreamEvent]struct{}{},
 	}
@@ -140,6 +146,14 @@ func (r *Runner) broadcast(sid string, ev StreamEvent) {
 		default: // slow consumer: drop rather than block the pump
 		}
 	}
+}
+
+// Caps returns the composer surface reported by the agent for a
+// session, or nil before the first "capabilities" event.
+func (r *Runner) Caps(sid string) *agent.Capabilities {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.caps[sid]
 }
 
 // PendingPermissions returns all unanswered permission events for a
