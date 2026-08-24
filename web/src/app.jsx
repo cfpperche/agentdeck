@@ -1,372 +1,266 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { api, openEvents } from "./api.js";
-import { Sidebar, Message, Composer, Logo } from "./components.jsx";
+import { api } from "./api.js";
+import { Sidebar, Logo } from "./components.jsx";
 import { AgentIcon } from "./icons.jsx";
+import { Chat } from "./chat.jsx";
 import { SettingsPanel } from "./components.jsx";
 import { useTheme } from "./theme.js";
 
+// App shell: sidebar + open-session TABS (editor-style). All open tabs
+// stay mounted (hidden ones keep SSE/drafts/permissions alive).
 export function App() {
   const theme = useTheme();
   const [agents, setAgents] = useState([]);
   const [sessions, setSessions] = useState([]);
+  const [openTabs, setOpenTabs] = useState([]); // session objects
   const [activeId, setActiveId] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [stream, setStream] = useState(null);
-  const [running, setRunning] = useState(false);
-  const [status, setStatus] = useState("idle"); // idle | running | waiting
-  const [queuedCount, setQueuedCount] = useState(0);
-  const [permissions, setPermissions] = useState([]); // pending approvals queue (G7)
-  const [editing, setEditing] = useState(false);
-  const [editText, setEditText] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [toast, setToast] = useState(null);
-  const [atBottom, setAtBottom] = useState(true);
-  const esRef = useRef(null);
-  const listRef = useRef(null);
+  const [isNarrow, setIsNarrow] = useState(() => matchMedia("(max-width: 767px)").matches);
+  useEffect(() => {
+    const mq = matchMedia("(max-width: 767px)");
+    const on = () => setIsNarrow(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
 
-  const active = sessions.find((s) => s.id === activeId);
-  const agentMeta = agents.find((a) => a?.id === active?.agent);
+  const agentById = Object.fromEntries(agents.map((a) => [a.id, a]));
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 4000); };
   const refreshSessions = useCallback(() => {
     api.sessions().then(setSessions).catch(() => {});
   }, []);
 
-  // ---- URL routing (G4): /s/<id> with working back/forward ----
-  const sidFromURL = () => {
-    const m = location.pathname.match(/^\/s\/([A-Za-z0-9]+)/);
-    if (m) return m[1];
-    return new URLSearchParams(location.search).get("s"); // legacy ?s=
+  // ---- URL: ?tab=<active>&tabs=<a,b,c> (home = no tab) ----
+  const parseURL = () => {
+    const p = new URLSearchParams(location.search);
+    const tabs = (p.get("tabs") || "").split(",").filter(Boolean);
+    const tab = p.get("tab");
+    if (p.get("s")) return { legacy: p.get("s") }; // pre-tabs deep-link
+    return { tabs, tab: tabs.includes(tab) ? tab : tabs[0] || null };
   };
 
   useEffect(() => {
     api.agents().then(setAgents).catch(() => {});
     refreshSessions();
-    // boot: parse BOTH routes (settings deep-link + legacy session link)
-    if (location.pathname.startsWith("/settings")) {
-      setSettingsOpen(true);
-    } else {
-      const s = sidFromURL();
-      if (s) {
-        setActiveId(s);
-        if (location.search) // normalize legacy deep-links in place
-          history.replaceState({}, "", `/s/${s}`);
-      }
+    const { tabs, tab, legacy } = parseURL();
+    if (legacy) {
+      // normalize legacy /s/<id> deep-links into the tab model
+      history.replaceState({}, "", `/?tabs=${legacy}&tab=${legacy}`);
+      setOpenTabsAndActive([legacy], legacy, false);
+    } else if (tabs.length) {
+      setOpenTabsAndActive(tabs, tab, false);
     }
+    if (location.pathname.startsWith("/settings")) setSettingsOpen(true);
   }, []);
 
   useEffect(() => {
     const onPop = () => {
-      const p = location.pathname;
-      setSettingsOpen(p.startsWith("/settings"));
-      setActiveId(sidFromURL());
+      setSettingsOpen(location.pathname.startsWith("/settings"));
+      const { tabs, tab } = parseURL();
+      setOpenTabs((prev) => {
+        // keep session objects we already have; fetch titles later
+        const byId = Object.fromEntries(prev.map((t) => [t.id, t]));
+        return tabs.map((id) => byId[id] || { id, title: "", agent: "" });
+      });
+      setActiveId(tab);
     };
     addEventListener("popstate", onPop);
     return () => removeEventListener("popstate", onPop);
   }, []);
 
+  // resolve tab titles/agents from the sessions list as it loads
   useEffect(() => {
-    const want = settingsOpen ? "/settings" : activeId ? `/s/${activeId}` : "/";
-    if (location.pathname !== want) history.pushState({}, "", want);
-  }, [activeId, settingsOpen]);
-
-  useEffect(() => {
-    esRef.current?.close();
-    setStream(null); setRunning(false); setStatus("idle"); setQueuedCount(0);
-    if (!activeId) { setMessages([]); return; }
-    api.messages(activeId).then(setMessages).catch(() => {});
-    esRef.current = openEvents(activeId, (ev) => {
-      if (ev.type === "state") {
-        setRunning(ev.running);
-        setStatus(ev.status || (ev.running ? "running" : "idle"));
-      }
-      else if (ev.type === "queue") setQueuedCount(ev.count || 0);
-      else if (ev.type === "permission") {
-        setPermissions((q) => [...q, { request_id: ev.request_id, tool: ev.tool, input: ev.input }]);
-      }
-      else if (ev.type === "text")
-        setStream((s) => ({ text: (s?.text || "") + ev.content, tools: s?.tools || [] }));
-      else if (ev.type === "tool")
-        setStream((s) => ({ text: s?.text || "", tools: [...(s?.tools || []), { name: ev.name, state: ev.state }] }));
-      else if (ev.type === "message_end") {
-        // resync from the server: queued tags resolve once delivered
-        api.messages(activeId).then(setMessages).catch(() => {});
-        setStream(null);
-        setQueuedCount((q) => Math.max(0, q - 1));
-        refreshSessions();
-      }
-    });
-    return () => esRef.current?.close();
-  }, [activeId]);
-
-  useEffect(() => {
-    if (atBottom && listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
-  }, [messages, stream]);
-
-  const onScroll = () => {
-    const el = listRef.current;
-    if (!el) return;
-    setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
-  };
-
-  const newSession = (agentId) => {
-    const agent = agentId || active?.agent || agents[0]?.id;
-    if (!agent) return showToast("no agent installed");
-    api.createSession(agent)
-      .then((s) => { refreshSessions(); setActiveId(s.id); })
-      .catch((e) => showToast(e.detail || "failed to create session"));
-  };
-
-  const send = (text) => {
-    api.send(activeId, text)
-      .then((res) => {
-        setMessages((m) => [
-          ...m,
-          { role: "user", content: text, meta: res.queued ? { queued: true } : null, id: Date.now() },
-        ]);
-        if (res.queued) setQueuedCount((q) => q + 1);
-        setRunning(true);
-        setStatus("running");
-        setAtBottom(true);
+    setOpenTabs((prev) =>
+      prev.map((t) => {
+        const s = sessions.find((x) => x.id === t.id);
+        return s ? s : t;
       })
-      .catch((e) => showToast(e.detail || "failed to send"));
+    );
+  }, [sessions]);
+
+  const setOpenTabsAndActive = (ids, active, push = true) => {
+    const byId = Object.fromEntries(
+      [...openTabs, ...sessions].map((t) => [t.id, t])
+    );
+    const tabs = ids.map((id) => byId[id] || { id, title: "", agent: "" });
+    setOpenTabs(tabs);
+    setActiveId(active);
+    if (push) {
+      const q = new URLSearchParams();
+      if (ids.length) {
+        q.set("tabs", ids.join(","));
+        if (active) q.set("tab", active);
+      }
+      history.pushState({}, "", `${location.pathname}?${q}`);
+    }
   };
 
-  const answerPermission = (behavior) => {
-    const p = permissions[0];
-    if (!p) return;
-    let updatedInput;
-    if (behavior === "allow" && editing && editText.trim()) {
-      try { updatedInput = JSON.parse(editText); }
-      catch { showToast("edited input is not valid JSON"); return; }
-    }
-    api.control(activeId, p.request_id, behavior, updatedInput)
-      .then(() => { setPermissions((q) => q.slice(1)); setEditing(false); setEditText(""); })
-      .catch((e) => showToast(e.detail || "failed to answer"));
+  // ---- actions ----
+  const openSession = (id) => {
+    setSettingsOpen(false);
+    const ids = openTabs.map((t) => t.id);
+    if (!ids.includes(id)) setOpenTabsAndActive([...ids, id], id);
+    else setOpenTabsAndActive(ids, id);
   };
-  const startEditing = () => {
-    const p = permissions[0];
-    if (!p) return;
-    setEditing(true);
-    setEditText(p.input || "{}");
+
+  const openNewSession = (agentId) => {
+    const agent = agentId || agents[0]?.id;
+    if (!agent) return;
+    api.createSession(agent).then((s) => {
+      refreshSessions();
+      openSession(s.id);
+    });
   };
+
+  const closeTab = (id) => {
+    const ids = openTabs.map((t) => t.id).filter((x) => x !== id);
+    const nextActive = activeId === id ? ids[ids.length - 1] || null : activeId;
+    setOpenTabsAndActive(ids, nextActive);
+    api.deleteSession; // no — closing a tab does NOT delete the session
+  };
+
+  const activeTab = openTabs.find((t) => t.id === activeId);
 
   return (
     <div class="flex h-full overflow-hidden">
       <Sidebar
-        sessions={sessions} agents={agents} activeId={activeId}
-        filter={filter} setFilter={setFilter}
-        onOpen={(id) => { setSettingsOpen(false); setActiveId(id); }} onNew={() => { setSettingsOpen(false); newSession(); }}
+        sessions={sessions}
+        agents={agents}
+        activeId={activeId}
+        filter={filter}
+        setFilter={setFilter}
+        onOpen={openSession}
+        onNew={() => { setSettingsOpen(false); openNewSession(); }}
         onRename={(id, t) => api.renameSession(id, t).then(refreshSessions)}
-        onDelete={(id) => api.deleteSession(id).then(() => { if (id === activeId) setActiveId(null); refreshSessions(); })}
-        open={sidebarOpen} setOpen={setSidebarOpen}
-        theme={theme.current} onToggleTheme={theme.toggle}
-        onOpenSettings={() => { setSettingsOpen(true); setActiveId(null); }}
+        onDelete={(id) => {
+          api.deleteSession(id).then(() => {
+            closeTab(id);
+            refreshSessions();
+          });
+        }}
+        open={sidebarOpen}
+        setOpen={setSidebarOpen}
+        theme={theme.current}
+        onToggleTheme={theme.toggle}
+        onOpenSettings={() => { setSettingsOpen(true); setActiveId(null); setOpenTabsAndActive(openTabs.map((t) => t.id), null); }}
       />
 
-      <main class="flex-1 flex flex-col min-w-0 relative" style={{ background: "var(--bg-canvas)" }}>
-        {/* header */}
-        <header
-          class="flex items-center gap-3 h-14 px-4 shrink-0 surface z-10"
-          style={{ background: "var(--bg-panel)", borderBottom: "1px solid var(--border-soft)" }}
-        >
-          <button class="md:hidden text-zinc-400 p-1.5 -ml-1.5" onClick={() => setSidebarOpen(true)} aria-label="menu">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-          </button>
-          {settingsOpen ? (
-            <h1 class="font-medium truncate text-[15px]" style={{ color: "var(--text-1)" }}>Settings</h1>
-          ) : active ? (
-            <>
-              <AgentIcon id={active.agent} size={16} color={agentMeta?.color || "#888"} />
-              <h1 class="font-medium truncate text-[15px]" style={{ color: "var(--text-1)" }}>{active.title || "untitled"}</h1>
-              <span class="text-xs shrink-0 hidden sm:inline" style={{ color: "var(--text-3)" }}>{agentMeta?.label || active.agent}</span>
-            </>
-          ) : (
-            <span class="flex items-center gap-2 md:hidden text-sm font-medium" style={{ color: "var(--text-1)" }}><Logo size={17} /> AgentDeck</span>
-          )}
-          <div class="ml-auto flex items-center gap-2 shrink-0">
-            {queuedCount > 0 && active && (
-              <button
-                onClick={() => api.clearQueue(activeId).then(() => setQueuedCount(0))}
-                class="text-[11px]" style={{ color: "var(--accent-fg)" }}
-                title="cancel queued messages"
-              >
-                {queuedCount} queued · cancel
-              </button>
-            )}
-            {status === "waiting" && (
-              <span class="flex items-center gap-1.5 text-xs" style={{ color: "var(--warn)" }}>
-                <span class="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--warn)" }} />
-                waiting
-              </span>
-            )}
-            {status === "running" && (
-              <span class="flex items-center gap-1.5 text-xs" style={{ color: "var(--ok)" }}>
-                <span class="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--ok)" }} />
-                running
-              </span>
-            )}
-          </div>
-        </header>
-
-        {/* content area */}
-        <div ref={listRef} onScroll={onScroll} class="flex-1 overflow-y-auto">
-          {settingsOpen ? (
-            <SettingsPanel themePref={theme.pref} currentTheme={theme.current} onSetTheme={(t) => { theme.setPref(t); }} />
-          ) : !active ? (
-            <EmptyState agents={agents} onNew={newSession} />
-          ) : (
-            <div class="max-w-3xl mx-auto w-full px-4 md:px-6 py-6">
-              {messages.length === 0 && !stream && (
-                <div class="text-center mt-20 text-sm" style={{ color: "var(--text-3)" }}>
-                  send the first message to <span style={{ color: "var(--text-1)" }}>{agentMeta?.label}</span>
-                </div>
-              )}
-              {messages.map((m) => <Message key={m.id || m.created_at} m={m} />)}
-
-              {stream && (
-                <div class="flex justify-start mb-5">
-                  <div class="max-w-[90%] md:max-w-[75%] rounded-2xl rounded-bl-md px-4 py-3"
-                    style={{ background: "var(--bg-card)", border: "1px solid var(--border-soft)" }}>
-                    {stream.text ? (
-                      <div class="md caret text-[15px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-1)" }}>{stream.text}</div>
-                    ) : (
-                      <span class="text-sm flex items-center gap-2" style={{ color: "var(--text-3)" }}>
-                        <Dots /> {agentMeta?.label || "agent"} working…
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-              {stream?.tools?.length > 0 && (
-                <div class="flex flex-wrap gap-1.5 -mt-3 mb-5">
-                  {stream.tools.slice(-6).map((t, i) => (
-                    <span key={i} class={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-mono ${t.state === "end" ? "" : "animate-pulse"}`}
-                      style={{ border: "1px solid var(--border)", color: t.state === "end" ? "var(--text-3)" : "var(--warn)" }}
-                      style={{ border: "1px solid var(--border)" }}>
-                      {t.state === "end" ? "✓" : "⟳"} {t.name}
-                    </span>
-                  ))}
-                </div>
-              )}
+      <main class="flex-1 flex flex-col min-w-0" style={{ background: "var(--bg-canvas)" }}>
+        {/* tab bar */}
+        <div class="flex items-stretch h-9 shrink-0 overflow-x-auto" style={{ background: "var(--bg-panel)", borderBottom: "1px solid var(--border-soft)" }}>
+          {openTabs.length === 0 && !settingsOpen && (
+            <div class="flex items-center px-4 gap-2 text-[12px]" style={{ color: "var(--text-3)" }}>
+              <Logo size={13} /> AgentDeck
             </div>
+          )}
+          {openTabs.map((t) => {
+            const active = t.id === activeId;
+            const ag = agentById[t.agent];
+            return (
+              <div
+                key={t.id}
+                onClick={() => { setSettingsOpen(false); setOpenTabsAndActive(openTabs.map((x) => x.id), t.id); }}
+                class={`group flex items-center gap-2 pl-3 pr-1.5 cursor-pointer text-[12.5px] shrink-0 max-w-[220px] surface ${active ? "" : "hover:bg-[color:var(--bg-hover)]"}`}
+                style={{
+                  borderRight: "1px solid var(--border-soft)",
+                  background: active ? "var(--bg-canvas)" : "transparent",
+                  color: active ? "var(--text-1)" : "var(--text-2)",
+                  boxShadow: active ? "inset 0 2px 0 0 var(--accent)" : "none",
+                }}
+                title={t.title}
+              >
+                {ag && <AgentIcon id={t.agent} size={12} color={ag.color} />}
+                <span class="truncate">{t.title || "untitled"}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); closeTab(t.id); }}
+                  class="h-5 w-5 grid place-items-center rounded opacity-0 group-hover:opacity-100"
+                  style={{ color: "var(--text-3)" }}
+                  aria-label="close tab"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+            );
+          })}
+          {/* new tab = home (hidden when no tabs: the screen IS home) */}
+          {openTabs.length > 0 && (
+          <div
+            onClick={() => { setSettingsOpen(false); setOpenTabsAndActive(openTabs.map((x) => x.id), null); }}
+            class="flex items-center px-3 cursor-pointer text-[12.5px] shrink-0 surface"
+            style={{
+              borderRight: "1px solid var(--border-soft)",
+              background: activeId === null && !settingsOpen ? "var(--bg-canvas)" : "transparent",
+              color: activeId === null && !settingsOpen ? "var(--text-1)" : "var(--text-3)",
+              boxShadow: activeId === null && !settingsOpen ? "inset 0 2px 0 0 var(--accent)" : "none",
+            }}
+            title="home"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M12 3v18"/></svg>
+          </div>
           )}
         </div>
 
-        {!atBottom && messages.length > 0 && (
-          <button
-            onClick={() => { setAtBottom(true); listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }); }}
-            class="absolute bottom-28 right-5 z-10 h-10 w-10 grid place-items-center rounded-full shadow-xl surface" style={{ color: "var(--text-2)" }}
-            style={{ background: "var(--bg-raised)", border: "1px solid var(--border)" }}
-            aria-label="jump to bottom"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14m-6-6 6 6 6-6"/></svg>
-          </button>
-        )}
-
-        {permissions.length > 0 && (() => {
-          const p = permissions[0];
-          return (
-            <div class="px-3 md:px-6 pt-3 max-w-3xl mx-auto w-full">
-              <div class="rounded-xl border px-4 py-3 flex flex-col gap-3"
-                style={{ background: "var(--warn-soft)", borderColor: "var(--warn-border)" }}>
-                <div class="flex items-start gap-3">
-                  <div class="flex-1 min-w-0">
-                    <div class="text-sm font-medium flex items-center gap-2" style={{ color: "var(--warn)" }}>
-                      <span class="h-2 w-2 rounded-full animate-pulse" style={{ background: "var(--warn)" }} />
-                      {p.tool} permission requested
-                      {permissions.length > 1 && (
-                        <span class="text-[11px] font-normal" style={{ color: "var(--text-2)" }}>
-                          1 of {permissions.length} — answer to continue
-                        </span>
-                      )}
-                    </div>
-                    <code class="block mt-1 text-[12px] font-mono truncate" style={{ color: "var(--text-2)" }}>{p.input}</code>
-                  </div>
-                  <button onClick={startEditing}
-                    class="text-[11px] shrink-0 h-7 px-2.5 rounded-md surface"
-                    style={{ color: "var(--text-2)", border: "1px solid var(--border)" }}>
-                    {editing ? "cancel edit" : "edit input"}
-                  </button>
-                </div>
-                {editing && (
-                  <div>
-                    <textarea
-                      value={editText}
-                      onInput={(e) => setEditText(e.target.value)}
-                      rows="3"
-                      spellCheck="false"
-                      class="w-full rounded-lg px-3 py-2 text-[12px] font-mono focus:outline-none"
-                      style={{ background: "var(--code-bg)", color: "var(--text-1)", border: "1px solid var(--border)" }}
-                    />
-                    <p class="text-[11px] mt-1" style={{ color: "var(--text-3)" }}>
-                      edited JSON is sent as updatedInput on Allow
-                    </p>
-                  </div>
-                )}
-                <div class="flex gap-2 justify-end">
-                  <button onClick={() => answerPermission("allow")}
-                    class="h-9 px-4 rounded-lg text-sm font-medium transition-colors"
-                    style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-fg)" }}>
-                    {editing ? "Allow with edits" : "Allow"}
-                  </button>
-                  <button onClick={() => answerPermission("deny")}
-                    class="h-9 px-4 rounded-lg text-sm font-medium border transition-colors"
-                    style={{ borderColor: "var(--err-border)", color: "var(--err)" }}>Deny</button>
-                </div>
+        {/* views: all tabs stay mounted; hidden ones keep their state */}
+        {settingsOpen ? (
+          <SettingsPanel themePref={theme.pref} currentTheme={theme.current} onSetTheme={theme.setPref} />
+        ) : activeTab ? (
+          <>
+            {openTabs.map((t) => (
+              <div key={t.id} style={{ display: t.id === activeId ? "flex" : "none" }} class="flex-1 min-h-0">
+                <Chat
+                  session={t}
+                  agentMeta={agentById[t.agent]}
+                  onOpenSidebar={() => setSidebarOpen(true)}
+                />
               </div>
-            </div>
-          );
-        })()}
-        {active && (
-          <Composer running={running} onSend={send} onStop={() => api.stop(activeId).then(refreshSessions)} sessionId={activeId} />
+            ))}
+          </>
+        ) : (
+          <Home agents={agents} onNew={openNewSession} onOpenSession={openSession} recent={sessions.slice(0, 6)} showRecent={sidebarOpen || isNarrow} />
         )}
       </main>
-
-      {toast && (
-        <div class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-lg px-4 py-2.5 text-sm shadow-xl surface"
-          style={{ background: "var(--err-soft)", border: "1px solid var(--err-border)", color: "var(--err)" }}>
-          {toast}
-        </div>
-      )}
     </div>
   );
 }
 
-function Dots() {
+// Home: hero + agent picker + recent sessions (opens as tabs)
+function Home({ agents, onNew, onOpenSession, recent, showRecent = false }) {
   return (
-    <span class="inline-flex gap-1">
-      {[0, 1, 2].map((i) => (
-        <span class="h-1.5 w-1.5 rounded-full animate-bounce" style={{ background: "var(--text-3)" }} style={{ animationDelay: `${i * 150}ms` }} />
-      ))}
-    </span>
-  );
-}
-
-function EmptyState({ agents, onNew }) {
-  return (
-    <div class="h-full flex items-center justify-center px-6">
-      <div class="max-w-sm w-full text-center" style={{ transform: "translateY(-4vh)" }}>
+    <div class="flex-1 overflow-y-auto flex flex-col">
+      <div class="max-w-md mx-auto w-full px-6 py-16 text-center flex-1 flex flex-col justify-center">
+        <div class="inline-grid place-items-center h-14 w-14 rounded-2xl mb-5"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+          <Logo size={26} />
+        </div>
         <h2 class="text-2xl font-semibold tracking-tight mb-2" style={{ color: "var(--text-1)" }}>AgentDeck</h2>
         <p class="text-[15px] leading-relaxed balance mb-9" style={{ color: "var(--text-2)" }}>
           Talk to your local coding agents from the browser — from anywhere.
         </p>
 
-        {agents.length > 0 && (
+        <p class="text-[11px] uppercase tracking-wider mb-3" style={{ color: "var(--text-3)" }}>start a session</p>
+        <div class="flex flex-wrap justify-center gap-2 max-w-[360px] mx-auto">
+          {agents.map((a) => (
+            <button key={a.id} onClick={() => onNew(a.id)}
+              class="chip flex flex-col items-center justify-center gap-2.5 h-[84px] w-[108px] rounded-xl text-sm active:scale-[0.97] transition-all"
+              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+              <AgentIcon id={a.id} size={22} color={a.color} />
+              <span class="text-[13px]" style={{ color: "var(--text-2)" }}>{a.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {recent.length > 0 && showRecent && (
           <>
-            <p class="text-[11px] uppercase tracking-wider mb-3" style={{ color: "var(--text-3)" }}>pick an agent to get started</p>
-            <div class="flex flex-wrap justify-center gap-2 max-w-[360px] mx-auto">
-              {agents.map((a) => (
-                <button
-                  key={a.id}
-                  onClick={() => onNew(a.id)}
-                  class="chip flex flex-col items-center justify-center gap-2.5 h-[84px] w-[108px] rounded-xl text-sm active:scale-[0.97] transition-all"
-                  style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-                >
-                  <AgentIcon id={a.id} size={a.id === "pi" ? 23 : a.id === "opencode" ? 24 : 22} color={a.color} />
-                  <span class="text-[13px]" style={{ color: "var(--text-2)" }}>{a.label}</span>
+            <p class="text-[11px] uppercase tracking-wider mt-12 mb-3" style={{ color: "var(--text-3)" }}>recent</p>
+            <div class="text-left rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+              {recent.map((s, i) => (
+                <button key={s.id} onClick={() => onOpenSession(s.id)}
+                  class="w-full flex items-center gap-2.5 px-4 py-2.5 surface hover:bg-[color:var(--bg-hover)] text-left"
+                  style={{ background: "var(--bg-card)", borderTop: i ? "1px solid var(--border-soft)" : "none" }}>
+                  <span class="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: s.agent === "claude" ? "#E07856" : "#888" }} />
+                  <span class="flex-1 truncate text-[13px]" style={{ color: "var(--text-1)" }}>{s.title || "untitled"}</span>
+                  <span class="text-[11px] shrink-0" style={{ color: "var(--text-3)" }}>{s.message_count} msg</span>
                 </button>
               ))}
             </div>

@@ -194,3 +194,7 @@ button { cursor: pointer; }
 @keyframes blink { 50% { opacity: 0; } }
 
 .chip:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+
+/* hover actions overlap the timestamp: fade it out instead */
+.group:hover .ts { opacity: 0; }
+.ts { transition: opacity 120ms ease; }

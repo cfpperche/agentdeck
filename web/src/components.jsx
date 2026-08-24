@@ -165,7 +165,7 @@ export function Sidebar({
                           {untitled ? "untitled" : s.title}
                         </span>
                       )}
-                      <span style={{ color: "var(--text-2)" }} class="text-[11px] shrink-0">{relTime(s.updated_at)}</span>
+                      <span style={{ color: "var(--text-2)" }} class="ts text-[11px] shrink-0">{relTime(s.updated_at)}</span>
                     </div>
                     <div class={`mt-0.5 pl-[15px] pr-3 text-[12px] text-zinc-500 truncate ${s.preview ? "" : "hidden"}`}>
                       {s.preview}
@@ -234,6 +234,7 @@ export function ToolChip({ tool }) {
         {done ? "✓" : "⟳"}
       </span>
       {tool.name}
+      {tool.detail && <span style={{ color: "var(--text-3)" }}>· {String(tool.detail).slice(0, 60)}</span>}
     </span>
   );
 }
@@ -325,7 +326,7 @@ export function Composer({ running, onSend, onStop, disabled, sessionId }) {
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
           }}
-          placeholder={disabled ? "crie uma sessão para começar" : "mensagem para o agente…"}
+          placeholder={disabled ? "open a session to start" : "message the agent…"}
           class="flex-1 resize-none rounded-xl px-4 py-3 text-[15px] focus:outline-none disabled:opacity-50 surface"
           style={{ color: "var(--text-1)", background: "var(--bg-card)", border: "1px solid var(--border)", maxHeight: 160 }}
           onfocus={(e) => (e.target.style.borderColor = "var(--border-strong)")}

@@ -7,6 +7,21 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Editor-style session tabs + home redesign**: sessions open as TABS
+  (bar on top, one active, closeable ×, all mounted — switching never
+  loses SSE streams, drafts or pending permissions); home `/` is the
+  hero (vertically centered agent picker; recent list shown only when
+  the sidebar is hidden, e.g. mobile). URLs model the tab state
+  (`?tabs=a,b&tab=a`); legacy `/s/<id>` deep-links normalize.
+- Chat view extracted to its own component (`chat.jsx`) — the session
+  logic is now independent of the shell.
+- Review fixes: messages anchored to the bottom of the viewport (no
+  dead space under short threads), tool chips show the command detail,
+  composer placeholder in English, sidebar hover no longer overlaps
+  the timestamp.
+- Benchmark postscript: t3code/paseo use route-per-thread instead of
+  tabs — tabs chosen deliberately for desktop-primary multi-session
+  (documented rationale in docs/benchmarks).
 - **Permission banner v2** (G7, issue #7): pending approvals are a
   QUEUE (counter "1 of N" when multiple, late-subscriber SSE snapshot
   replays the whole queue), and Allow can carry **edited input** —

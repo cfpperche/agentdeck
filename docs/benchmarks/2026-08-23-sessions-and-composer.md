@@ -122,6 +122,19 @@ thumb-zone) but adopt the draft-edit model (Allow with edits via
 resolved-state feedback. multiSelect/options do not apply to our
 tool-permission flow (single decision), skipped deliberately.
 
+### Postscript (home + tabs, 2026-08-24)
+
+- t3code: no literal tab bar — route-per-thread with history + a
+  selection store (`threadSelectionStore.ts`) for multi-select.
+  Threads are the navigation primitive; no two visible simultaneously
+  (mobile-first bias).
+- paseo: task-centric; no tab bar either.
+- Editor-style tabs (VS Code/Cursor convention) are nonetheless the
+  natural fit for AgentDeck's desktop-primary use (user request): keep
+  N live sessions mounted, switch without losing SSE state. Decided:
+  tab bar of open sessions, one active, closeable; home `/` hosts the
+  hero (empty state) and the first-message composer.
+
 ## 4. What we keep (not everything is worth copying)
 
 - Our single-binary Go distribution and embedded UI — neither has that
