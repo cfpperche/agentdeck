@@ -79,6 +79,8 @@ Two dev routes, pick either:
 ```bash
 # A) Go server (:8444, HTTPS self-signed) — pass the flag once per session:
 agent-browser open https://localhost:8444 --ignore-https-errors
+#   (port may differ — check `journalctl --user -u agentdeck` or data/server port;
+#    the port is user-configurable in Settings → Server)
 #    (or export AGENT_BROWSER_IGNORE_HTTPS_ERRORS=1)
 
 # B) Vite dev server (:5173, plain HTTP, hot reload) — no flag needed:

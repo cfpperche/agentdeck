@@ -395,6 +395,7 @@ export function SettingsPanel({ themePref, onSetTheme, currentTheme }) {
         </div>
       </section>
 
+      <PortSection />
       <AboutSection />
     </div>
   );
@@ -512,5 +513,94 @@ export function UserMenu({ theme, onToggleTheme, onOpenSettings }) {
         </div>
       )}
     </div>
+  );
+}
+
+
+/* ------------------------------------------------------- port (Server) */
+function PortSection() {
+  const [serving, setServing] = useState(null);
+  const [configured, setConfigured] = useState("");
+  const [port, setPort] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [moving, setMoving] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/server/port").then((r) => r.json()).then((j) => {
+      setServing(j.serving);
+      setPort(String(j.serving));
+      setConfigured(j.configured || String(j.serving));
+    }).catch(() => {});
+  }, []);
+
+  const apply = () => {
+    const target = port.trim();
+    if (!target || busy || moving) return;
+    setError(null);
+    setBusy(true);
+    fetch("/api/server/port", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ port: target }),
+    }).then(async (r) => {
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 202) {
+        setMoving(j.port);
+        setTimeout(() => {
+          location.replace(`${location.protocol}//${location.hostname}:${j.port}/settings`);
+        }, 1500);
+      } else {
+        setError(j.detail || "cannot change port");
+        setBusy(false);
+      }
+    }).catch((e) => { setError(String(e)); setBusy(false); });
+  };
+
+  const dirty = port.trim() !== String(serving);
+
+  return (
+    <section class="mt-10">
+      <h3 class="text-[11px] font-medium uppercase tracking-wider mb-3" style={{ color: "var(--text-3)" }}>Server</h3>
+      <p class="text-sm mb-4" style={{ color: "var(--text-2)" }}>
+        Port AgentDeck serves on. The server moves immediately and this page reconnects.
+      </p>
+      <div class="flex gap-2 items-start">
+        <label class="flex flex-col gap-1.5">
+          <span class="text-[11px] font-medium" style={{ color: "var(--text-3)" }}>Port</span>
+          <input
+          value={port}
+          onInput={(e) => setPort(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && apply()}
+          disabled={!!moving}
+          spellCheck="false"
+          class="w-28 h-10 rounded-lg px-3 text-[13px] font-mono focus:outline-none surface"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border-soft)", color: "var(--text-1)" }}
+          />
+        </label>
+        <button
+          onClick={apply}
+          disabled={!dirty || busy || !!moving}
+          class="h-10 px-5 rounded-lg text-[13px] font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-fg)" }}
+        >
+          {moving ? "Moving…" : "Apply"}
+        </button>
+      </div>
+      {moving && (
+        <p class="text-[12px] mt-2.5" style={{ color: "var(--accent-fg)" }}>
+          Moving to port {moving} — reconnecting…
+        </p>
+      )}
+      {!moving && !error && (
+        <p class="flex items-center gap-1.5 text-[12px] mt-2.5" style={{ color: "var(--text-3)" }}>
+          <span class="h-1.5 w-1.5 rounded-full" style={{ background: "var(--ok)" }} />
+          Serving on port {serving ?? "…"}{configured && configured !== String(serving) ? ` (configured: ${configured})` : ""}.
+        </p>
+      )}
+      {error && (
+        <p class="text-[12px] mt-2.5" style={{ color: "var(--err)" }}>{error}</p>
+      )}
+    </section>
   );
 }

@@ -5,15 +5,21 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/cfpperche/agentdeck/internal/agent"
+	"github.com/cfpperche/agentdeck/internal/config"
 	"github.com/cfpperche/agentdeck/internal/runner"
 	"github.com/cfpperche/agentdeck/internal/store"
 )
@@ -24,7 +30,17 @@ type Server struct {
 	Runner   *runner.Runner
 	Mode     string // execution mode badge (ADR-0002)
 	Version  string
+	Rebind   *Rebind // optional: port-change signal (nil = disabled)
+	Host     string  // bind host for the port probe (default 127.0.0.1)
+
+	currentPort atomic.Int32
 }
+
+// CurrentPort returns the port this process is serving on.
+func (s *Server) CurrentPort() int { return int(s.currentPort.Load()) }
+
+// SetCurrentPort records the serving port (called by the serve loop).
+func (s *Server) SetCurrentPort(p int) { s.currentPort.Store(int32(p)) }
 
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
@@ -33,6 +49,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/fs/dirs", s.handleListDirs)
 	mux.HandleFunc("POST /api/fs/mkdir", s.handleMkdir)
 	mux.HandleFunc("GET /api/server-info", s.handleServerInfo)
+	mux.HandleFunc("GET /api/server/port", s.handleGetPort)
+	mux.HandleFunc("PUT /api/server/port", s.handlePutPort)
 	mux.HandleFunc("GET /api/sessions", s.handleListSessions)
 	mux.HandleFunc("POST /api/sessions", s.handleCreateSession)
 	mux.HandleFunc("PATCH /api/sessions/{id}", s.handleRenameSession)
@@ -160,6 +178,57 @@ func (s *Server) handleServerInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{
 		"mode": s.Mode, "version": s.Version,
 		"user": username, "host": host,
+	})
+}
+
+// handleGetPort reports the serving + configured port.
+func (s *Server) handleGetPort(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"serving":    s.CurrentPort(),
+		"configured": s.Store.GetSetting("server.port"),
+	})
+}
+
+// handlePutPort changes the serving port (settings-sourced rebind).
+// Probe-bind as early courtesy (occupied now → 409); the serve loop's
+// bind-new-then-drop-old is the transactional guarantee (rollback on
+// failure). Responds 202 via the OLD listener; the UI reconnects.
+func (s *Server) handlePutPort(w http.ResponseWriter, r *http.Request) {
+	if s.Rebind == nil {
+		writeErr(w, 501, "port change disabled in this process")
+		return
+	}
+	var in struct {
+		Port string `json:"port"`
+	}
+	if err := readBody(r, &in); err != nil {
+		writeErr(w, 400, "invalid body")
+		return
+	}
+	pc, err := config.ParsePort(in.Port)
+	if err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	if pc.Min != pc.Max {
+		writeErr(w, 400, "UI accepts a single port (ranges are for env/headless)")
+		return
+	}
+	// probe-bind (courtesy, not guarantee)
+	for p := pc.Min; p <= pc.Max; p++ {
+		l, err := net.Listen("tcp", net.JoinHostPort(s.Host, strconv.Itoa(p)))
+		if err != nil {
+			writeErr(w, 409, fmt.Sprintf("port %d is already in use", p))
+			return
+		}
+		l.Close()
+	}
+	from := s.Store.GetSetting("server.port")
+	s.Store.SetSetting("server.port", strconv.Itoa(pc.Min))
+	s.Rebind.Signal()
+	log.Printf("server_port_changed from=%q to=%d", from, pc.Min)
+	writeJSON(w, http.StatusAccepted, map[string]any{
+		"moving": true, "port": pc.Min,
 	})
 }
 

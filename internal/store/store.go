@@ -65,6 +65,10 @@ CREATE TABLE IF NOT EXISTS messages(
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, id);
+CREATE TABLE IF NOT EXISTS settings(
+    k TEXT PRIMARY KEY,
+    v TEXT NOT NULL
+);
 `
 
 // Open creates/opens the database at dir/agentdeck.db.
@@ -301,4 +305,19 @@ func CleanPreview(text string) string {
 
 func isPreviewRune(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsSpace(r)
+}
+
+// ---- settings (key/value server preferences, e.g. server.port) ----
+
+func (s *Store) SetSetting(key, value string) error {
+	_, err := s.db.Exec(
+		`INSERT INTO settings(k, v) VALUES(?,?)
+		 ON CONFLICT(k) DO UPDATE SET v=excluded.v`, key, value)
+	return err
+}
+
+func (s *Store) GetSetting(key string) string {
+	var v string
+	s.db.QueryRow(`SELECT v FROM settings WHERE k=?`, key).Scan(&v)
+	return v
 }

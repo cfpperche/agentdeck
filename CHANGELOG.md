@@ -7,6 +7,16 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Port configuration (PiCode-parity mechanism)**: `PortConfig`
+  (single or range) — boot tries the range and binds the first free
+  port; Settings → Server lets the user move the app to a specific
+  port with **bind-new-then-drop-old** semantics (probe-bind 409
+  courtesy check, rollback of the setting if the final bind fails,
+  202 + UI auto-reconnect to the new port). UI accepts a single port
+  (ranges are for AGENTDECK_PORT headless); precedence:
+  saved setting > env > default 8444-8454. Ports are not in the cert
+  SANs, so mkcert keeps working across moves. /api/server/port
+  (GET/PUT) + settings key/value table.
 - **User menu (Vercel-style) at the sidebar bottom** (benchmark:
   t3code SidebarChrome + Vercel dashboard): avatar with initials,
   username + execution mode from /api/server-info (now also exposes

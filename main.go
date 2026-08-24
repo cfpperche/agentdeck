@@ -1,26 +1,22 @@
 // AgentDeck — the web cockpit for local AI coding agents.
 //
-// Single binary: embeds the web UI (go:embed) and serves the API over
-// HTTPS with a self-signed certificate generated on first run.
+// Serve loop with live port rebinding (mechanism ported from PiCode):
+// bind-NEW-then-drop-OLD, probe-bind as early courtesy, rollback on
+// failure — the app is never unreachable during a port change.
 package main
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
+	"context"
 	"crypto/tls"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"embed"
-	"encoding/pem"
-	"io/fs"
+	"fmt"
 	"log"
-	"math/big"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
-	"strings"
+	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/cfpperche/agentdeck/internal/agent"
@@ -33,8 +29,12 @@ import (
 // Version is overridden at build time via -ldflags.
 var Version = "dev"
 
-//go:embed all:web/dist
-var webFiles embed.FS
+// serveState is the live listener state; swapped atomically by rebind.
+type serveState struct {
+	srv  *http.Server
+	ln   net.Listener
+	port int
+}
 
 func main() {
 	cfg := config.FromEnv()
@@ -47,144 +47,128 @@ func main() {
 
 	reg := agent.NewRegistry(agent.EnvWhich(nil))
 	if len(reg.List()) == 0 {
-		log.Fatal("no agent CLI found (need claude, codex, grok, pi or opencode in PATH)")
+		log.Fatal("no agent CLI found (need claude, codex, grok, pi or opencode)")
 	}
 
 	r := runner.New(reg, st, filepath.Join(cfg.DataDir, "workspaces"))
+	rebind := server.NewRebind()
 	srv := &server.Server{
 		Registry: reg, Store: st, Runner: r,
 		Mode: string(cfg.Mode), Version: Version,
+		Rebind: rebind,
+	}
+	handler := withWebUI(srv.Routes())
+
+	// resolve port: settings > env > default range
+	portCfg := resolvePort(st, cfg)
+
+	state, err := bindAndServe(handler, cfg, portCfg)
+	if err != nil {
+		log.Fatalf("bind: %v", err)
+	}
+	srv.Host = cfg.Host
+	srv.SetCurrentPort(state.port)
+	logStartup(cfg, state.port, len(reg.List()))
+
+	// graceful shutdown on signals
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+
+	for {
+		select {
+		case <-sigCh:
+			log.Println("shutting down…")
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			state.srv.Shutdown(ctx)
+			cancel()
+			return
+		case <-rebind.Chan():
+			// re-resolve (settings changed) and try to bind NEW first
+			newCfg := cfg
+			newPort := resolvePort(st, cfg)
+			next, err := bindAndServe(handler, newCfg, newPort)
+			if err != nil {
+				log.Printf("rebind failed (%v) — keeping port %d", err, state.port)
+				// roll the setting back so state matches reality
+				st.SetSetting("server.port", strconv.Itoa(state.port))
+				continue
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			state.srv.Shutdown(ctx) // drain old (live agents keep running)
+			cancel()
+			state = next
+			srv.SetCurrentPort(state.port)
+			logStartup(cfg, state.port, len(reg.List()))
+		}
+	}
+}
+
+// resolvePort precedence: saved setting > env > default range.
+func resolvePort(st *store.Store, cfg config.Config) config.PortConfig {
+	if v := st.GetSetting("server.port"); v != "" {
+		if p, err := config.ParsePort(v); err == nil {
+			return p
+		}
+	}
+	if v := os.Getenv("AGENTDECK_PORT"); v != "" {
+		if p, err := config.ParsePort(v); err == nil {
+			return p
+		}
+	}
+	return config.PortConfig{Min: 8444, Max: 8454}
+}
+
+// bindAndServe tries each port in the range; first bind wins.
+func bindAndServe(handler http.Handler, cfg config.Config, ports config.PortConfig) (*serveState, error) {
+	var ln net.Listener
+	var port int
+	var lastErr error
+	for p := ports.Min; p <= ports.Max; p++ {
+		l, err := net.Listen("tcp", net.JoinHostPort(cfg.Host, strconv.Itoa(p)))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		ln, port = l, p
+		break
+	}
+	if ln == nil {
+		return nil, fmt.Errorf("no free port in %s: %w", ports, lastErr)
 	}
 
-	handler := withWebUI(srv.Routes())
-	scheme := "https"
-	httpSrv := &http.Server{
-		Addr:              cfg.Addr,
+	srv := &http.Server{
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	if cfg.TLS {
 		cert, err := ensureCert(cfg.DataDir)
 		if err != nil {
-			log.Fatalf("tls: %v", err)
+			ln.Close()
+			return nil, err
 		}
 		warnIfCertExpiring(cfg.DataDir, 30*24*time.Hour)
-		httpSrv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
-		log.Fatal(httpSrv.ListenAndServeTLS("", ""))
+		srv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
+		// wrap for TLS while keeping the plain listener
+		go func() {
+			if err := srv.ServeTLS(ln, "", ""); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("serve: %v", err)
+			}
+		}()
+	} else {
+		go func() {
+			if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("serve: %v", err)
+			}
+		}()
 	}
-	scheme = "http"
-	log.Printf("AgentDeck %s  %s://%s  (mode=%s, data=%s, agents=%d)",
-		Version, scheme, cfg.Addr, cfg.Mode, cfg.DataDir, len(reg.List()))
-	log.Fatal(httpSrv.ListenAndServe())
+	return &serveState{srv: srv, ln: ln, port: port}, nil
 }
 
-// withWebUI serves the embedded SPA for non-/api paths (SPA fallback).
-func withWebUI(api http.Handler) http.Handler {
-	dist, err := fs.Sub(webFiles, "web/dist")
-	if err != nil {
-		log.Fatal(err)
+func logStartup(cfg config.Config, port, agents int) {
+	scheme := "https"
+	if !cfg.TLS {
+		scheme = "http"
 	}
-	fileServer := http.FileServer(http.FS(dist))
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/") {
-			api.ServeHTTP(w, r)
-			return
-		}
-		// SPA fallback: serve index.html for unknown paths
-		if _, err := fs.Stat(dist, strings.TrimPrefix(r.URL.Path, "/")); err != nil {
-			r.URL.Path = "/"
-		}
-		fileServer.ServeHTTP(w, r)
-	})
-}
-
-// warnIfCertExpiring logs loudly when the leaf cert is close to expiry
-// (the weekly systemd timer renews; this is the observability net).
-func warnIfCertExpiring(dataDir string, within time.Duration) {
-	b, err := os.ReadFile(filepath.Join(dataDir, "cert.pem"))
-	if err != nil {
-		return
-	}
-	block, _ := pem.Decode(b)
-	if block == nil {
-		return
-	}
-	crt, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return
-	}
-	if time.Until(crt.NotAfter) < within {
-		log.Printf("WARNING: TLS certificate expires in %.0f days (%s) — run scripts/setup-cert.sh",
-			time.Until(crt.NotAfter).Hours()/24, crt.NotAfter.Format("2006-01-02"))
-	}
-}
-
-// ensureCert loads or creates a self-signed certificate in the data dir.
-// Native crypto — no openssl dependency.
-func ensureCert(dataDir string) (tls.Certificate, error) {
-	certPath := filepath.Join(dataDir, "cert.pem")
-	keyPath := filepath.Join(dataDir, "key.pem")
-	if cert, err := tls.LoadX509KeyPair(certPath, keyPath); err == nil {
-		return cert, nil
-	}
-
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-	tmpl := x509.Certificate{
-		SerialNumber: big.NewInt(time.Now().UnixNano()),
-		Subject:      pkix.Name{CommonName: "agentdeck"},
-		NotBefore:    time.Now().Add(-time.Hour),
-		NotAfter:     time.Now().AddDate(10, 0, 0),
-		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-	}
-	// SANs: localhost + every local IPv4 (LAN + tailnet), so trusting
-	// this one cert covers all access routes
-	tmpl.IPAddresses = append(tmpl.IPAddresses,
-		net.ParseIP("127.0.0.1"), net.ParseIP("::1"))
-	tmpl.DNSNames = []string{"localhost"}
-	seen := map[string]bool{}
-	ifaces, _ := net.Interfaces()
-	for _, ifc := range ifaces {
-		addrs, _ := ifc.Addrs()
-		for _, a := range addrs {
-			var ip net.IP
-			switch v := a.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			if ip == nil || ip.To4() == nil || ip.IsLoopback() {
-				continue
-			}
-			if !seen[ip.String()] {
-				seen[ip.String()] = true
-				tmpl.IPAddresses = append(tmpl.IPAddresses, ip)
-			}
-		}
-	}
-	der, err := x509.CreateCertificate(rand.Reader, &tmpl, &tmpl,
-		&key.PublicKey, key)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
-	keyDER, err := x509.MarshalECPrivateKey(key)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
-	if err := os.WriteFile(certPath, certPEM, 0o644); err != nil {
-		return tls.Certificate{}, err
-	}
-	if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {
-		return tls.Certificate{}, err
-	}
-	log.Printf("generated self-signed certificate: %s", certPath)
-	return tls.X509KeyPair(certPEM, keyPEM)
+	log.Printf("AgentDeck %s  %s://%s:%d  (mode=%s, data=%s, agents=%d)",
+		Version, scheme, cfg.Host, port, cfg.Mode, cfg.DataDir, agents)
 }

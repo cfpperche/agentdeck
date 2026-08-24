@@ -3,9 +3,11 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
+	"strconv"
 )
 
 type Mode string
@@ -21,10 +23,38 @@ const (
 const DedicatedUser = "aiagent"
 
 type Config struct {
-	Addr    string // host:port
+	Addr    string // host:port (effective, after bind)
+	Host    string
+	Port    int    // effective port (the one that bound)
 	DataDir string // sessions db + workspaces + certs
 	Mode    Mode   // effective mode (after auto-detection)
 	TLS     bool   // serve HTTPS with a self-signed cert
+}
+
+// PortConfig is a port or a range ("8444" or "8444-8454").
+type PortConfig struct{ Min, Max int }
+
+func ParsePort(s string) (PortConfig, error) {
+	var a, b int
+	n, _ := fmt.Sscanf(s, "%d-%d", &a, &b)
+	switch {
+	case n == 2:
+	case n == 1:
+		b = a
+	default:
+		return PortConfig{}, fmt.Errorf("invalid port %q", s)
+	}
+	if a < 1 || b > 65535 || a > b || b-a > 99 {
+		return PortConfig{}, fmt.Errorf("invalid port range %q", s)
+	}
+	return PortConfig{a, b}, nil
+}
+
+func (p PortConfig) String() string {
+	if p.Min == p.Max {
+		return strconv.Itoa(p.Min)
+	}
+	return fmt.Sprintf("%d-%d", p.Min, p.Max)
 }
 
 // FromEnv builds the configuration. Env parity with the Phase-0 server:
