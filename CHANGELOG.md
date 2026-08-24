@@ -7,6 +7,10 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Composer statusline — Claude**: SDK/CLI `result.usage`
+  (`input_tokens`, cache read/create, `total_cost_usd`) becomes the
+  same usage pulse. Shim emits it; parseClaude also reads usage
+  nested on `result` so the CLI fallback works. Window 200k.
 - **Composer statusline — Grok**: ACP `_x.ai/session_notification`
   and prompt-result `_meta` (input/output/cache/totalTokens) become
   the same usage pulse. Default window 500k.

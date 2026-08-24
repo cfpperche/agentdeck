@@ -96,6 +96,10 @@ export async function query({ prompt, options }) {
     type: "assistant",
     message: { role: "assistant", content: [{ type: "text", text }] },
   });
-  messages.push({ type: "result", subtype: "success", result: text, session_id: sid });
+  messages.push({
+    type: "result", subtype: "success", result: text, session_id: sid,
+    usage: { input_tokens: 8, output_tokens: 2, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+    total_cost_usd: 0,
+  });
   return messages;
 }

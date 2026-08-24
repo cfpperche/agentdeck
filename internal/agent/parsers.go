@@ -224,6 +224,9 @@ func parseClaude(line string) []Event {
 		if id, ok := ev["session_id"].(string); ok && id != "" {
 			out = append(out, Event{Kind: KindRef, Ref: id})
 		}
+		if u := usageFromClaudeResult(ev); u != nil {
+			out = append(out, Event{Kind: KindUsage, Usage: u})
+		}
 		sub, _ := ev["subtype"].(string)
 		res, _ := ev["result"].(string)
 		if sub == "success" {
@@ -455,6 +458,36 @@ func toolDetail(v any) string {
 		}
 	}
 	return ""
+}
+
+func usageFromClaudeResult(ev map[string]any) *Usage {
+	raw, _ := ev["usage"].(map[string]any)
+	if raw == nil {
+		return nil
+	}
+	n := func(keys ...string) int {
+		for _, k := range keys {
+			switch v := raw[k].(type) {
+			case float64:
+				return int(v)
+			case int:
+				return v
+			}
+		}
+		return 0
+	}
+	in, out := n("input_tokens", "input"), n("output_tokens", "output")
+	cr, cw := n("cache_read_input_tokens", "cache_read"), n("cache_creation_input_tokens", "cache_write")
+	total := in + out + cr + cw
+	cost := 0.0
+	switch v := ev["total_cost_usd"].(type) {
+	case float64:
+		cost = v
+	}
+	if total == 0 && cost == 0 {
+		return nil
+	}
+	return &Usage{Input: in, Output: out, CacheRead: cr, CacheWrite: cw, Total: total, Cost: cost}
 }
 
 func trunc(s string, n int) string {

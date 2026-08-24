@@ -36,6 +36,15 @@ func TestParseClaude(t *testing.T) {
 			[]Event{{Kind: KindUsage, Usage: &Usage{Input: 10, Output: 4, CacheRead: 20, Total: 34, Window: 272000}}},
 		},
 		{
+			"result carries usage",
+			`{"type":"result","subtype":"success","result":"ok","session_id":"s1","usage":{"input_tokens":12,"output_tokens":3,"cache_read_input_tokens":40},"total_cost_usd":0.01}`,
+			[]Event{
+				{Kind: KindRef, Ref: "s1"},
+				{Kind: KindUsage, Usage: &Usage{Input: 12, Output: 3, CacheRead: 40, Total: 55, Cost: 0.01}},
+				{Kind: KindFinal, Content: "ok"},
+			},
+		},
+		{
 			"result success final",
 			`{"type":"result","subtype":"success","result":"Apareceu: agentdeck","session_id":"37f542d2"}`,
 			[]Event{{Kind: KindRef, Ref: "37f542d2"}, {Kind: KindFinal, Content: "Apareceu: agentdeck"}},

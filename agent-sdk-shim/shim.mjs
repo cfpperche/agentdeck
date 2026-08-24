@@ -82,10 +82,33 @@ function normalize(message, ctx) {
         subtype: message.subtype || "success",
         result: message.result ?? "",
         session_id: ctx.sessionId ?? message.session_id,
+        usage: message.usage || undefined,
+        total_cost_usd: message.total_cost_usd,
       });
+      {
+        const pulse = usageFromClaude(message);
+        if (pulse) out.push(pulse);
+      }
       break;
   }
   return out;
+}
+
+// Claude result.usage is Anthropic BetaUsage (input_tokens, …).
+// Flatten to the AgentDeck statusline pulse (same shape as Codex/Grok).
+function usageFromClaude(message) {
+  const u = message.usage || {};
+  const input = Number(u.input_tokens || 0);
+  const output = Number(u.output_tokens || 0);
+  const cr = Number(u.cache_read_input_tokens || 0);
+  const cw = Number(u.cache_creation_input_tokens || 0);
+  const total = input + output + cr + cw;
+  const cost = Number(message.total_cost_usd || 0);
+  if (!total && !cost) return null;
+  return {
+    type: "usage",
+    input, output, cache_read: cr, cache_write: cw, total, cost,
+  };
 }
 
 async function main() {

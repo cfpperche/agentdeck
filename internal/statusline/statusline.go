@@ -174,7 +174,7 @@ func defaultWindow(agent, model string) int {
 	switch {
 	case strings.Contains(m, "grok") || agent == "grok":
 		return 500_000
-	case strings.Contains(m, "claude") || strings.Contains(m, "sonnet") || strings.Contains(m, "opus"):
+	case strings.Contains(m, "claude") || strings.Contains(m, "sonnet") || strings.Contains(m, "opus") || strings.Contains(m, "haiku") || agent == "claude":
 		return 200_000
 	case strings.Contains(m, "gpt-5") || strings.Contains(m, "codex"):
 		return 272_000
