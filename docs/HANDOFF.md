@@ -59,6 +59,13 @@ the SQLite schema — it stays until parity is proven in the field.
 
 ## Bodies buried
 
+-2. **Agent discovery must be user-local aware**: systemd user services
+    get a clean PATH without ~/.local/bin or ~/.bun/bin — CLIs installed
+    by user-prefix package managers (claude, grok, opencode) silently
+    disappear. `userAwareLookup` is the base resolver; if you ever pass
+    a custom `which` to EnvWhich, it REPLACES the base — chain it.
+
+
 -1. **Shim stdin MUST be line-framed** (readline), never chunk-iterated:
     the Go runner writes user + control_response frames close together
     and the pipe coalesces them; JSON.parse of glued objects fails

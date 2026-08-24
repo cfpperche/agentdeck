@@ -128,6 +128,13 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
   (see `AGENTS.md`).
 
 ### Fixed
+- Agent discovery missed user-local installs under systemd: the
+  registry only consulted PATH, and service environments don't include
+  ~/.local/bin or ~/.bun/bin — claude, grok and opencode vanished from
+  the picker when running as a service (regression surfaced on the
+  home screen). Lookup now falls back to user-local dirs; EnvWhich
+  chains the same base resolver (bug: passing an explicit `which`
+  bypassed the fallback entirely).
 - Web app crashed on load (`permission is not defined`) — state and
   SSE handler for the approval banner were lost in an edit chain;
   restored. Root-cause amplifier: a stale agentdeck process (old

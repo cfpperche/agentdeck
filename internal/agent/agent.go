@@ -5,8 +5,10 @@
 package agent
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -59,25 +61,27 @@ type Registry struct {
 // Which resolves a binary name to a path. Tests inject fakes through it.
 type Which func(name string) (string, error)
 
-// EnvWhich checks AGENTDECK_BIN_<id> overrides first, then PATH.
-// The override enables deterministic tests with fake agent binaries.
+// EnvWhich checks AGENTDECK_BIN_<id> overrides first, then resolves
+// via PATH plus user-local dirs (userAwareLookup). The override enables
+// deterministic tests with fake agent binaries.
 func EnvWhich(which Which) Which {
+	base := which
+	if base == nil {
+		base = userAwareLookup
+	}
 	return func(name string) (string, error) {
 		key := "AGENTDECK_BIN_" + strings.ToUpper(strings.ReplaceAll(name, "-", "_"))
 		if p := os.Getenv(key); p != "" {
 			return p, nil
 		}
-		if which == nil {
-			return exec.LookPath(name)
-		}
-		return which(name)
+		return base(name)
 	}
 }
 
 // NewRegistry discovers agents present on this machine.
 func NewRegistry(which Which) *Registry {
 	if which == nil {
-		which = exec.LookPath
+		which = userAwareLookup
 	}
 	r := &Registry{m: map[string]Adapter{}}
 	add := func(a Adapter, bin string) {
@@ -93,6 +97,30 @@ func NewRegistry(which Which) *Registry {
 		}
 	}
 	return r
+}
+
+// userAwareLookup resolves a binary via PATH plus the usual user-local
+// install dirs (~/.local/bin, ~/.bun/bin) — systemd services get a clean
+// PATH that misses CLIs installed by npm/bun user prefixes (found live:
+// claude/grok in ~/.local/bin were invisible to the service).
+func userAwareLookup(name string) (string, error) {
+	if p, err := exec.LookPath(name); err == nil {
+		return p, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	for _, dir := range []string{
+		filepath.Join(home, ".local", "bin"),
+		filepath.Join(home, ".bun", "bin"),
+	} {
+		p := filepath.Join(dir, name)
+		if st, err := os.Stat(p); err == nil && !st.IsDir() && st.Mode()&0o111 != 0 {
+			return p, nil
+		}
+	}
+	return "", fmt.Errorf("%s: not found", name)
 }
 
 // Get returns the adapter by id.
