@@ -7,6 +7,8 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Composer statusline — Codex**: live tokens from
+  `thread/tokenUsage/updated` (window included). Same Bar as pi.
 - **Composer statusline (pi first)**: cwd, git branch/dirty, context
   meter, tokens in/out, cache hit and cost — PiCode's Bar, fed by
   `GET /api/sessions/{id}/status`. Pi usage is scanned from the latest

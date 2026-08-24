@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/cfpperche/agentdeck/internal/agent"
 )
 
 func TestParseContextWindow(t *testing.T) {
@@ -58,6 +60,17 @@ func TestScanPiUsage(t *testing.T) {
 	}
 	if u.cost != 0.12 {
 		t.Fatalf("cost %v", u.cost)
+	}
+}
+
+func TestApplyLive(t *testing.T) {
+	b := Build(t.TempDir(), "", "codex", "gpt-5.6-terra")
+	b = ApplyLive(b, &agent.Usage{Input: 1000, Output: 80, CacheRead: 4000, Total: 5080, Window: 272000})
+	if b.Input != 1000 || b.Output != 80 || b.ContextTokens == nil || *b.ContextTokens != 5080 {
+		t.Fatalf("%+v", b)
+	}
+	if b.ContextPercent == nil || *b.ContextPercent < 1 {
+		t.Fatalf("pct %+v", b.ContextPercent)
 	}
 }
 

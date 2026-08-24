@@ -32,5 +32,9 @@ func (s *Server) handleSessionStatus(w http.ResponseWriter, r *http.Request) {
 	if ss.Agent == "pi" {
 		path = statusline.LatestPiSession(cwd)
 	}
-	writeJSON(w, http.StatusOK, statusline.Build(cwd, path, ss.Agent, model))
+	bar := statusline.Build(cwd, path, ss.Agent, model)
+	if s.Runner != nil {
+		bar = statusline.ApplyLive(bar, s.Runner.Usage(id))
+	}
+	writeJSON(w, http.StatusOK, bar)
 }

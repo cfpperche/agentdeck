@@ -22,6 +22,7 @@ const (
 	KindError   = "error"
 	KindControl = "control"      // agent asks the user (permission request)
 	KindCaps    = "capabilities" // composer surface reported at startup
+	KindUsage   = "usage"        // token/cost pulse for the statusline
 )
 
 // Event is the normalized stream unit. Kind discriminates the payload.
@@ -33,6 +34,18 @@ type Event struct {
 	State   string        `json:"state,omitempty"` // start | end
 	Detail  string        `json:"detail,omitempty"`
 	Caps    *Capabilities `json:"capabilities,omitempty"`
+	Usage   *Usage        `json:"usage,omitempty"`
+}
+
+// Usage is a live token pulse (Codex thread/tokenUsage, Claude result, …).
+type Usage struct {
+	Input      int     `json:"input,omitempty"`
+	Output     int     `json:"output,omitempty"`
+	CacheRead  int     `json:"cache_read,omitempty"`
+	CacheWrite int     `json:"cache_write,omitempty"`
+	Total      int     `json:"total,omitempty"`
+	Window     int     `json:"window,omitempty"`
+	Cost       float64 `json:"cost,omitempty"`
 }
 
 // Capabilities is the composer surface an agent reports (ADR-0006):

@@ -31,6 +31,11 @@ func TestParseClaude(t *testing.T) {
 			[]Event{{Kind: KindTool, Name: "Bash", State: "start", Detail: "echo agentdeck"}},
 		},
 		{
+			"usage pulse",
+			`{"type":"usage","input":10,"output":4,"cache_read":20,"total":34,"window":272000}`,
+			[]Event{{Kind: KindUsage, Usage: &Usage{Input: 10, Output: 4, CacheRead: 20, Total: 34, Window: 272000}}},
+		},
+		{
 			"result success final",
 			`{"type":"result","subtype":"success","result":"Apareceu: agentdeck","session_id":"37f542d2"}`,
 			[]Event{{Kind: KindRef, Ref: "37f542d2"}, {Kind: KindFinal, Content: "Apareceu: agentdeck"}},

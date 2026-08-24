@@ -213,6 +213,13 @@ func parseClaude(line string) []Event {
 					State: "start", Detail: toolDetail(b["input"])})
 			}
 		}
+	case "usage":
+		if b, err := json.Marshal(ev); err == nil {
+			var u Usage
+			if json.Unmarshal(b, &u) == nil && (u.Total > 0 || u.Input > 0 || u.Output > 0 || u.Window > 0) {
+				out = append(out, Event{Kind: KindUsage, Usage: &u})
+			}
+		}
 	case "result":
 		if id, ok := ev["session_id"].(string); ok && id != "" {
 			out = append(out, Event{Kind: KindRef, Ref: id})

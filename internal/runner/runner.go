@@ -81,6 +81,7 @@ type Runner struct {
 	state   map[string]SessionStatus
 	pending map[string][]StreamEvent       // unanswered permission requests, in order
 	caps    map[string]*agent.Capabilities // last reported composer surface
+	usage   map[string]*agent.Usage         // live token pulse (statusline)
 	ctrls   map[string]*agent.Controls     // last composer selection per session
 	queues  map[string][]string            // messages waiting for the current turn
 	subs    map[string]map[chan StreamEvent]struct{}
@@ -96,6 +97,7 @@ func New(reg *agent.Registry, st *store.Store, workspaces string) *Runner {
 		state:   map[string]SessionStatus{},
 		pending: map[string][]StreamEvent{},
 		caps:    map[string]*agent.Capabilities{},
+		usage:   map[string]*agent.Usage{},
 		ctrls:   map[string]*agent.Controls{},
 		queues:  map[string][]string{},
 		subs:    map[string]map[chan StreamEvent]struct{}{},
@@ -157,6 +159,13 @@ func (r *Runner) broadcast(sid string, ev StreamEvent) {
 // Caps returns the composer surface for a session: the dynamically
 // reported one when available, else the per-agent defaults so the UI
 // can render controls before the first spawn.
+// Usage is the last live token pulse for this session (nil if none).
+func (r *Runner) Usage(sid string) *agent.Usage {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.usage[sid]
+}
+
 // LastControls is the composer selection last sent for this session.
 func (r *Runner) LastControls(sid string) *agent.Controls {
 	r.mu.Lock()

@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/cfpperche/agentdeck/internal/agent"
 )
 
 // Bar is the JSON the composer statusline consumes.
@@ -122,6 +124,49 @@ func gitInfo(cwd string) (branch, worktree string, dirty bool) {
 		dirty = len(strings.TrimSpace(string(out))) > 0
 	}
 	return branch, worktree, dirty
+}
+
+// ApplyLive overlays a live token pulse (Codex thread/tokenUsage, …)
+// onto a Bar built from cwd/git/files.
+func ApplyLive(b Bar, u *agent.Usage) Bar {
+	if u == nil {
+		return b
+	}
+	if u.Input > 0 {
+		b.Input = u.Input
+	}
+	if u.Output > 0 {
+		b.Output = u.Output
+	}
+	if u.CacheRead > 0 {
+		b.CacheRead = u.CacheRead
+	}
+	if u.CacheWrite > 0 {
+		b.CacheWrite = u.CacheWrite
+	}
+	if u.Cost > 0 {
+		b.Cost = u.Cost
+	}
+	if u.Total > 0 {
+		t := u.Total
+		b.ContextTokens = &t
+	}
+	win := u.Window
+	if win == 0 && b.ContextWindow != nil {
+		win = *b.ContextWindow
+	}
+	if win > 0 {
+		b.ContextWindow = &win
+		if b.ContextTokens != nil {
+			pct := 100 * float64(*b.ContextTokens) / float64(win)
+			b.ContextPercent = &pct
+		}
+	}
+	if b.CacheRead > 0 && (b.Input+b.CacheRead) > 0 {
+		h := 100 * float64(b.CacheRead) / float64(b.Input+b.CacheRead)
+		b.CacheHit = &h
+	}
+	return b
 }
 
 func defaultWindow(agent, model string) int {

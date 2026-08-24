@@ -165,6 +165,12 @@ func (r *Runner) pumpLive(sid string, adapter agent.Adapter, lp *liveProc, pr *o
 				r.mu.Unlock()
 				r.setStatus(sid, StatusWaiting)
 				r.broadcast(sid, pev)
+			case agent.KindUsage:
+				if ev.Usage != nil {
+					r.mu.Lock()
+					r.usage[sid] = ev.Usage
+					r.mu.Unlock()
+				}
 			case agent.KindCaps:
 				// composer surface: remember for late subscribers and push.
 				r.mu.Lock()

@@ -418,6 +418,8 @@ func (b *Bridge) handleAgent(m line) {
 				b.mu.Unlock()
 			}
 		}
+	case "thread/tokenUsage/updated":
+		emitCodexUsage(params)
 	case "turn/completed":
 		turn, _ := params["turn"].(map[string]any)
 		status, _ := turn["status"].(string)
@@ -579,4 +581,35 @@ func (b *Bridge) startTurn(text string) {
 	b.mu.Unlock()
 	// ack only — completion is turn/completed
 	go b.c.wait(b.c.call("turn/start", params))
+}
+
+func emitCodexUsage(params map[string]any) {
+	tu, _ := params["tokenUsage"].(map[string]any)
+	if tu == nil {
+		return
+	}
+	total, _ := tu["total"].(map[string]any)
+	if total == nil {
+		total, _ = tu["last"].(map[string]any)
+	}
+	if total == nil {
+		return
+	}
+	emit(map[string]any{
+		"type":        "usage",
+		"input":       num(total["inputTokens"]),
+		"output":      num(total["outputTokens"]),
+		"cache_read":  num(total["cachedInputTokens"]),
+		"cache_write": num(total["cacheWriteInputTokens"]),
+		"total":       num(total["totalTokens"]),
+		"window":      num(tu["modelContextWindow"]),
+	})
+}
+
+func num(v any) int {
+	i, ok := asInt(v)
+	if !ok {
+		return 0
+	}
+	return int(i)
 }
