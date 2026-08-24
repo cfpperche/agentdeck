@@ -1,6 +1,7 @@
 // Package acp implements a minimal Agent Client Protocol client
 // (ADR-0007): NDJSON JSON-RPC over stdio, as spoken by `opencode acp`
-// (verified against opencode 1.18.20 on 2026-08-24).
+// (verified against opencode 1.18.20 on 2026-08-24) and `grok agent
+// stdio` (grok 1.0.5, verified 2026-08-24).
 package acp
 
 import (
@@ -9,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -179,6 +181,17 @@ type SessionConfigOption struct {
 type SessionNewResult struct {
 	SessionID     string                `json:"sessionId"`
 	ConfigOptions []SessionConfigOption `json:"configOptions,omitempty"`
+	// grok 1.0.5+ (ACP session/new) — not configOptions
+	Models *SessionModels `json:"models,omitempty"`
+	Meta   json.RawMessage `json:"_meta,omitempty"`
+}
+
+type SessionModels struct {
+	CurrentModelID  string `json:"currentModelId"`
+	AvailableModels []struct {
+		ModelID string `json:"modelId"`
+		Name    string `json:"name"`
+	} `json:"availableModels"`
 }
 
 func (c *Conn) NewSession(cwd string) (*SessionNewResult, error) {
@@ -198,20 +211,61 @@ func (c *Conn) NewSession(cwd string) (*SessionNewResult, error) {
 }
 
 func (c *Conn) SetModel(sessionID, modelID string) (*SessionNewResult, error) {
-	id, err := c.Call("session/set_config_option",
-		map[string]any{"sessionId": sessionID, "configId": "model", "value": modelID})
+	// grok: session/set_model; opencode: session/set_config_option
+	res, errRes, err := c.callWait("session/set_model",
+		map[string]any{"sessionId": sessionID, "modelId": modelID})
+	if isMethodMissing(errRes) {
+		res, errRes, err = c.callWait("session/set_config_option",
+			map[string]any{"sessionId": sessionID, "configId": "model", "value": modelID})
+	}
 	if err != nil {
 		return nil, err
 	}
-	res, _, err := c.Wait(id)
-	if err != nil {
-		return nil, err
+	if errRes != nil {
+		return nil, ErrFrom(errRes)
 	}
 	var out SessionNewResult
 	if res != nil {
-		json.Unmarshal(res, &out) // best effort: current options echo back
+		json.Unmarshal(res, &out)
 	}
 	return &out, nil
+}
+
+// SetMode maps composer thinking → grok session/set_mode (modeId =
+// low|medium|high|xhigh). opencode has no equivalent; method-missing is ok.
+func (c *Conn) SetMode(sessionID, modeID string) error {
+	_, errRes, err := c.callWait("session/set_mode",
+		map[string]any{"sessionId": sessionID, "modeId": modeID})
+	if err != nil {
+		return err
+	}
+	if isMethodMissing(errRes) {
+		return nil
+	}
+	if errRes != nil {
+		return ErrFrom(errRes)
+	}
+	return nil
+}
+
+func (c *Conn) callWait(method string, params any) (json.RawMessage, json.RawMessage, error) {
+	id, err := c.Call(method, params)
+	if err != nil {
+		return nil, nil, err
+	}
+	return c.Wait(id)
+}
+
+func isMethodMissing(errRes json.RawMessage) bool {
+	if errRes == nil {
+		return false
+	}
+	var e struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+	json.Unmarshal(errRes, &e)
+	return e.Code == -32601 || strings.Contains(strings.ToLower(e.Message), "not found")
 }
 
 // Prompt sends one user turn. Streaming updates arrive via Next()

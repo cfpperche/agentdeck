@@ -116,6 +116,7 @@ func (b *Bridge) Run() error {
 
 func capsFrom(sess *SessionNewResult) map[string]any {
 	models := []map[string]any{}
+	// opencode: configOptions[id=model].options
 	for _, o := range sess.ConfigOptions {
 		if o.ID == "model" && o.Type == "select" {
 			for _, opt := range o.Options {
@@ -126,7 +127,52 @@ func capsFrom(sess *SessionNewResult) map[string]any {
 			}
 		}
 	}
+	// grok: session/new.models.availableModels
+	if len(models) == 0 && sess.Models != nil {
+		cur := sess.Models.CurrentModelID
+		think := thinkingFromMeta(sess.Meta)
+		for _, m := range sess.Models.AvailableModels {
+			entry := map[string]any{
+				"id": m.ModelID, "label": m.Name,
+				"is_default": m.ModelID == cur,
+			}
+			if len(think) > 0 {
+				entry["thinking_options"] = think
+			}
+			models = append(models, entry)
+		}
+	}
 	return map[string]any{"type": "capabilities", "models": models, "modes": []any{}}
+}
+
+func thinkingFromMeta(raw json.RawMessage) []map[string]any {
+	if len(raw) == 0 {
+		return nil
+	}
+	var meta struct {
+		Cfg struct {
+			Options []struct {
+				ID       string `json:"id"`
+				Category string `json:"category"`
+				Name     string `json:"name"`
+			} `json:"options"`
+		} `json:"x.ai/sessionConfig"`
+	}
+	if json.Unmarshal(raw, &meta) != nil {
+		return nil
+	}
+	out := []map[string]any{}
+	for _, o := range meta.Cfg.Options {
+		if o.Category != "mode" {
+			continue
+		}
+		label := o.Name
+		if label == "" {
+			label = o.ID
+		}
+		out = append(out, map[string]any{"id": o.ID, "label": label})
+	}
+	return out
 }
 
 func (b *Bridge) handleAgentMessage(n *Next) error {
@@ -210,6 +256,12 @@ func (b *Bridge) handleWireLine(line string) error {
 			if _, err := b.conn.SetModel(b.sessionID(), msg.Controls.Model); err != nil {
 				emit(map[string]any{"type": "result", "subtype": "error",
 					"result": "set model: " + err.Error()})
+			}
+		}
+		if msg.Controls.Thinking != "" {
+			if err := b.conn.SetMode(b.sessionID(), msg.Controls.Thinking); err != nil {
+				emit(map[string]any{"type": "result", "subtype": "error",
+					"result": "set thinking: " + err.Error()})
 			}
 		}
 	case "control_response":

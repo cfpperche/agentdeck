@@ -23,6 +23,12 @@ Feasibility spikes on this machine (2026-08-24, receipts):
 - **codex**: `app-server` (experimental) — own JSON-RPC protocol;
   t3code drives codex through exactly this.
 - **grok**: CLI only (streaming-json + resume flags).
+  **Amended 2026-08-24:** grok 1.0.5 speaks ACP via `grok agent
+  stdio` (receipts: `~/.grok/docs/user-guide/15-agent-mode.md` +
+  live handshake). Catalog is `session/new.models.availableModels`
+  (not opencode's `configOptions`); mid-session switch is
+  `session/set_model` / `session/set_mode` (thinking). Same generic
+  `__acp` bridge, different argv.
 - **gemini**: not installed; speaks ACP natively when added
   (`--experimental-acp`).
 
@@ -34,8 +40,9 @@ Three driver tiers, best available per agent:
    claude via Agent SDK shim (ADR-0005). Later: pi rpc, codex
    app-server.
 2. **ACP driver** — one generic client for any Agent-Client-Protocol
-   agent. First target: opencode (native). Future agents (gemini)
-   join by configuration, not code.
+   agent. Targets: opencode (`opencode acp`) and grok
+   (`grok agent stdio`). Future agents (gemini) join by
+   configuration, not code.
 3. **CLI fallback** — spawn-per-message with flag injection
    (ADR-0006). Stays as safety net, never removed.
 
@@ -53,4 +60,5 @@ parser already normalizes it.
 - Model switching becomes mid-session state, not a respawn.
 - One new integration surface to maintain (the ACP client); contained
   in `internal/acp` + a bridge entrypoint.
-- Agents without any protocol stay on tier-3 honestly (grok today).
+- Agents without any protocol stay on tier-3 honestly (none of the
+  five installed runtimes, as of grok ACP).

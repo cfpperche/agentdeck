@@ -7,6 +7,13 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **grok ACP driver (ADR-0007 tier-2)**: `grok agent stdio` is a
+  real ACP server (docs in `~/.grok` + live handshake on 1.0.5).
+  Reuses the generic `__acp` bridge; argv is `agent stdio` not
+  `acp`. Live catalog from `session/new.models` (grok-4.6 / 4.5),
+  mid-session `session/set_model` + `session/set_mode` (thinking
+  low…xhigh). Permission prompts ride the existing ACP
+  request_permission path. Fallback CLI spawn stays as safety net.
 - **pi native driver (ADR-0007 tier-1)**: `internal/pibridge` drives
   `pi --mode rpc` (protocol receipts: paseo providers/pi, verified
   against the installed CLI). Live model catalog via

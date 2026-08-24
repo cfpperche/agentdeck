@@ -109,9 +109,9 @@ the SQLite schema — it stays until parity is proven in the field.
 - [ ] Validate the permission control-request handshake against the
       REAL claude CLI (fake implements the documented shape; local
       `bypassPermissions` blocked live spiking — needs a clean config)
-- [ ] Runner v2 tier 1 for pi (`--mode rpc` — different protocol,
-      adapter + parser to be written)
-- [ ] Tier 2 ports: codex `app-server`, grok/opencode `serve`+`attach`
+- [x] Runner v2 tier 1 for pi (`--mode rpc`) — `internal/pibridge`
+- [x] grok ACP (`grok agent stdio`) + opencode ACP (`opencode acp`)
+- [ ] Tier-1 leftover: codex `app-server`
 - [ ] `install.sh` (curl | sh) + Homebrew tap
 - [ ] Tagged releases with SHA256SUMS (adapt the workflow from
       cfpperche/aiagent-linux, including changelog-sourced notes)
@@ -145,3 +145,10 @@ again: pass absolute CLI paths into bridges, never rely on lookup.
 - prompt's RPC response is only an ACK; completion = agent_end (older builds: agent_settled)
 - unauthenticated/flaky providers return EMPTY agent_end — the bridge converts that to a result:error so turns never hang
 - single reader rule again: replies route to per-id channels, events to one channel; never consume Events from two places
+
+### grok ACP notes (2026-08-24)
+- transport: `grok agent stdio` (NOT `grok acp`, NOT `serve`+`attach`)
+- catalog shape differs from opencode: `session/new.models.availableModels[{modelId,name}]` plus `_meta["x.ai/sessionConfig"].options` (category=mode → thinking)
+- switch: `session/set_model {modelId}` / `session/set_mode {modeId}`; `session/set_config_option` is Method not found
+- lots of `_x.ai/*` notifications — ignore (already the default)
+- do NOT pass `--always-approve`; we want request_permission in the UI

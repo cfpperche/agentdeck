@@ -243,12 +243,16 @@ func DefaultCaps(agentID string) *Capabilities {
 			},
 		}
 	case "grok":
+		think := []SelectOption{
+			{ID: "low", Label: "Low"}, {ID: "medium", Label: "Medium"},
+			{ID: "high", Label: "High"}, {ID: "xhigh", Label: "Extra high"},
+		}
 		return &Capabilities{
 			Models: []ModelDef{
-				{ID: "grok-4.6", Label: "Grok 4.6", IsDefault: true},
-				{ID: "grok-4.5", Label: "Grok 4.5"},
+				{ID: "grok-4.6", Label: "Grok 4.6", IsDefault: true, ThinkingOptions: think},
+				{ID: "grok-4.5", Label: "Grok 4.5", ThinkingOptions: think},
 			},
-			Modes: []ModeDef{}, // CLI exposes no approval modes headless
+			Modes: []ModeDef{}, // permission prompts arrive via ACP request_permission
 		}
 	case "pi":
 		return &Capabilities{

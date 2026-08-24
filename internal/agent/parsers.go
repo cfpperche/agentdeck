@@ -84,6 +84,8 @@ var adapterSpecs = []spec{
 	{"grok", func(p string) Adapter {
 		return Adapter{
 			ID: "grok", Label: "Grok", Color: "#C9CEDC",
+			BuildLive: buildGrokLive(selfExe(), p),
+			ParseLive: parseClaude, // ACP bridge emits the claude dialect
 			Build: func(text, ref, cwd string, hasHistory bool) []string {
 				argv := []string{p, "--output-format", "streaming-json"}
 				switch {

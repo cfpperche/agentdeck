@@ -93,6 +93,16 @@ func buildOpenCodeLive(exe, cliPath string) func(ref, cwd string) []string {
 	}
 }
 
+// buildGrokLive (ADR-0007): grok 1.0.5+ speaks ACP on
+// `grok agent stdio` (receipts: ~/.grok/docs/user-guide/15-agent-mode.md,
+// live handshake 2026-08-24). Same generic bridge as opencode; argv
+// differs (`agent stdio` not `acp`).
+func buildGrokLive(exe, cliPath string) func(ref, cwd string) []string {
+	return func(ref, cwd string) []string {
+		return []string{exe, "__acp", cliPath, "agent", "stdio"}
+	}
+}
+
 // buildPiLive (ADR-0007): pi speaks its own RPC protocol (--mode rpc,
 // receipts in paseo providers/pi). Driven through our embedded bridge.
 func buildPiLive(exe, cliPath string) func(ref, cwd string) []string {
