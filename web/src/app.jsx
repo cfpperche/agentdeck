@@ -238,6 +238,7 @@ export function App() {
                   agentMeta={agentById[t.agent]}
                   onOpenSidebar={() => setSidebarOpen(true)}
                   onSessionUpdated={refreshSessions}
+                  onStop={() => api.stop(t.id).then(refreshSessions)}
                 />
               </div>
             ))}

@@ -5,7 +5,7 @@ import { Message, Composer, ToolChip } from "./components.jsx";
 // Chat: one live session view (messages + SSE + composer + permission
 // banner). Designed to stay MOUNTED while hidden (tab switching) so
 // streams/drafts/permissions survive.
-export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated }) {
+export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onStop }) {
   const sid = session.id;
   const [messages, setMessages] = useState(null); // null = loading
   const [stream, setStream] = useState(null);
@@ -96,21 +96,16 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated }) {
 
   return (
     <div class="flex-1 flex flex-col min-w-0 relative" style={{ background: "var(--bg-canvas)" }}>
-      {/* toolbar */}
-      <header class="flex items-center gap-3 h-12 px-4 shrink-0 surface"
+      {/* slim toolbar: state only — the TAB is the title (no duplication) */}
+      <header class="flex items-center gap-2 h-10 px-4 shrink-0 surface"
         style={{ background: "var(--bg-panel)", borderBottom: "1px solid var(--border-soft)" }}>
         {onOpenSidebar && (
           <button class="md:hidden p-1.5 -ml-1.5" style={{ color: "var(--text-2)" }} onClick={onOpenSidebar} aria-label="menu">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
           </button>
         )}
-        <span class="h-2 w-2 rounded-full shrink-0" style={{ background: agentMeta?.color || "#888" }} />
-        <h1 class="font-medium truncate text-[14px]" style={{ color: "var(--text-1)" }}>{session.title || "untitled"}</h1>
-        <span class="text-xs px-2 py-0.5 rounded-md shrink-0" style={{ color: "var(--text-2)", background: "var(--bg-raised)" }}>
-          {agentMeta?.label || session.agent}
-        </span>
         {session.cwd && (
-          <span class="text-[11px] font-mono px-2 py-0.5 rounded-md shrink-0 hidden sm:inline"
+          <span class="text-[11px] font-mono px-2 py-0.5 rounded-md truncate"
             title={session.cwd}
             style={{ color: "var(--text-3)", background: "var(--bg-raised)" }}>
             {session.cwd.split("/").filter(Boolean).pop() || "/"}
@@ -132,6 +127,11 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated }) {
             <span class="flex items-center gap-1.5 text-xs" style={{ color: "var(--ok)" }}>
               <span class="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--ok)" }} />running
             </span>
+          )}
+          {running && !onStop && null}
+          {onStop && running && (
+            <button onClick={onStop} class="text-[11px] px-2 h-6 rounded-md"
+              style={{ border: "1px solid var(--err-border)", color: "var(--err)" }}>stop</button>
           )}
         </div>
       </header>
