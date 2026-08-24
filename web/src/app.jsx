@@ -8,6 +8,7 @@ import { useTheme } from "./theme.js";
 import { NewSessionPanel } from "./newsession.jsx";
 import { ShareDrawer } from "./share.jsx";
 import { DevicesPanel } from "./devices.jsx";
+import { SystemPanel } from "./system.jsx";
 import { parseAppURL, chatPath, overlayPath } from "./url.js";
 
 const NEW_TAB_ID = "__new__";
@@ -22,7 +23,8 @@ export function App() {
   const [activeId, setActiveId] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [devicesOpen, setDevicesOpen] = useState(false);
-  const closeOverlays = () => { setSettingsOpen(false); setDevicesOpen(false); };
+  const [systemOpen, setSystemOpen] = useState(false);
+  const closeOverlays = () => { setSettingsOpen(false); setDevicesOpen(false); setSystemOpen(false); };
   const tabIds = () => openTabs.map((t) => t.id);
   const leaveOverlay = () => {
     closeOverlays();
@@ -58,6 +60,7 @@ export function App() {
     }
     if (overlay === "settings") setSettingsOpen(true);
     if (overlay === "devices") setDevicesOpen(true);
+    if (overlay === "system") setSystemOpen(true);
   }, []);
 
   useEffect(() => {
@@ -87,6 +90,7 @@ export function App() {
       const { tabs, tab, overlay } = parseAppURL();
       setSettingsOpen(overlay === "settings");
       setDevicesOpen(overlay === "devices");
+      setSystemOpen(overlay === "system");
       setOpenTabs((prev) => {
         // keep session objects we already have; fetch titles later
         const byId = Object.fromEntries(prev.map((t) => [t.id, t]));
@@ -179,14 +183,19 @@ export function App() {
         theme={theme.current}
         onToggleTheme={theme.toggle}
         onOpenSettings={() => {
-          setDevicesOpen(false);
+          closeOverlays();
           setSettingsOpen(true);
           history.pushState({}, "", overlayPath("settings", tabIds(), activeId));
         }}
         onOpenDevices={() => {
-          setSettingsOpen(false);
+          closeOverlays();
           setDevicesOpen(true);
           history.pushState({}, "", overlayPath("devices", tabIds(), activeId));
+        }}
+        onOpenSystem={() => {
+          closeOverlays();
+          setSystemOpen(true);
+          history.pushState({}, "", overlayPath("system", tabIds(), activeId));
         }}
       />
 
@@ -235,9 +244,9 @@ export function App() {
             class="flex items-center px-3 cursor-pointer text-[12.5px] shrink-0 surface"
             style={{
               borderRight: "1px solid var(--border-soft)",
-              background: activeId === null && !settingsOpen && !devicesOpen ? "var(--bg-canvas)" : "transparent",
-              color: activeId === null && !settingsOpen && !devicesOpen ? "var(--text-1)" : "var(--text-3)",
-              boxShadow: activeId === null && !settingsOpen && !devicesOpen ? "inset 0 2px 0 0 var(--accent)" : "none",
+              background: activeId === null && !settingsOpen && !devicesOpen && !systemOpen ? "var(--bg-canvas)" : "transparent",
+              color: activeId === null && !settingsOpen && !devicesOpen && !systemOpen ? "var(--text-1)" : "var(--text-3)",
+              boxShadow: activeId === null && !settingsOpen && !devicesOpen && !systemOpen ? "inset 0 2px 0 0 var(--accent)" : "none",
             }}
             title="home"
           >
@@ -251,6 +260,8 @@ export function App() {
           <SettingsPanel themePref={theme.pref} currentTheme={theme.current} onSetTheme={theme.setPref} onClose={leaveOverlay} />
         ) : devicesOpen ? (
           <DevicesPanel onClose={leaveOverlay} />
+        ) : systemOpen ? (
+          <SystemPanel onClose={leaveOverlay} />
         ) : activeId === NEW_TAB_ID ? (
           <NewSessionPanel
             agents={agents}

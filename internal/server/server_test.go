@@ -69,6 +69,25 @@ func TestShareAndDevices(t *testing.T) {
 	}
 }
 
+func TestSystemReport(t *testing.T) {
+	ts := newTestServer(t)
+	resp, err := http.Get(ts.URL + "/api/system")
+	if err != nil || resp.StatusCode != 200 {
+		t.Fatalf("system: %v %v", err, resp)
+	}
+	var rep map[string]any
+	json.NewDecoder(resp.Body).Decode(&rep)
+	for _, k := range []string{"host", "network", "tmux", "mkcert", "tailscale", "agents"} {
+		if _, ok := rep[k]; !ok {
+			t.Fatalf("system missing %s: %v", k, rep)
+		}
+	}
+	host, _ := rep["host"].(map[string]any)
+	if host["os"] == "" {
+		t.Fatalf("host.os empty: %v", host)
+	}
+}
+
 func TestAPIContract(t *testing.T) {
 	ts := newTestServer(t)
 

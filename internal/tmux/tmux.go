@@ -22,6 +22,15 @@ func (m *Manager) Available() bool {
 	return err == nil
 }
 
+// Version is the tmux -V string without the "tmux " prefix (e.g. "3.6").
+func (m *Manager) Version() string {
+	out, err := exec.Command("tmux", "-V").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimPrefix(strings.TrimSpace(string(out)), "tmux ")
+}
+
 var nonName = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
 
 // SessionName is the tmux target for an AgentDeck session id.

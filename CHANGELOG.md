@@ -7,6 +7,9 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **/system route** (PiCode-shaped): Host, Network, Dependencies
+  (tmux, mkcert, tailscale, installed agents) and About. Settings
+  keeps only Appearance + Server port — version/mode/about moved out.
 - **Terminal dock (ADR-0008)**: opt-in xterm.js panel (closed by
   default, real header, × detaches). Opens the runtime's genuine TUI
   in tmux; exclusive with the protocol process (PiCode ADR-0006

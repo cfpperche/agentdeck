@@ -56,6 +56,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/fs/dirs", s.handleListDirs)
 	mux.HandleFunc("POST /api/fs/mkdir", s.handleMkdir)
 	mux.HandleFunc("GET /api/server-info", s.handleServerInfo)
+	mux.HandleFunc("GET /api/system", s.handleSystem)
 	mux.HandleFunc("GET /api/share", s.handleShare)
 	mux.HandleFunc("POST /api/devices/ping", s.handleDevicePing)
 	mux.HandleFunc("GET /api/devices", s.handleDeviceList)

@@ -1,7 +1,7 @@
 // Tab-model URL helpers.
 //
 // Chat always lives at `/` with `?tabs=<ids>&tab=<active>`. Overlay
-// routes (`/settings`, `/devices`) keep the same query so closing them
+// routes (`/settings`, `/devices`, `/system`) keep the same query so closing them
 // restores the exact tab set. They must never leak into chat navigation
 // — `setOpenTabsAndActive` used to push `${location.pathname}?…`, which
 // glued /devices and /settings onto every subsequent click.
@@ -22,6 +22,7 @@ export function parseAppURL(loc = window.location) {
   let overlay = null;
   if ((loc.pathname || "").startsWith("/settings")) overlay = "settings";
   else if ((loc.pathname || "").startsWith("/devices")) overlay = "devices";
+  else if ((loc.pathname || "").startsWith("/system")) overlay = "system";
   return { overlay, tabs, tab, legacy: null };
 }
 

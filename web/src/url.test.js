@@ -18,6 +18,7 @@ describe("overlayPath", () => {
   it("keeps the tab query so close can restore it", () => {
     expect(overlayPath("devices", ["a"], "a")).toBe("/devices?tabs=a&tab=a");
     expect(overlayPath("settings", ["a", "b"], "b")).toBe("/settings?tabs=a%2Cb&tab=b");
+    expect(overlayPath("system", [], null)).toBe("/system");
   });
   it("bare overlay when no tabs", () => {
     expect(overlayPath("devices", [], null)).toBe("/devices");
@@ -40,6 +41,7 @@ describe("parseAppURL", () => {
     expect(parseAppURL(loc("/settings"))).toEqual({
       overlay: "settings", tabs: [], tab: null, legacy: null,
     });
+    expect(parseAppURL(loc("/system", "?tabs=a&tab=a")).overlay).toBe("system");
   });
   it("normalizes legacy /s/<id> and ?s=", () => {
     expect(parseAppURL(loc("/s/xyz")).legacy).toBe("xyz");

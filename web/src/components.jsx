@@ -51,7 +51,7 @@ const groupOf = (iso) => {
 /* --------------------------------------------------------------- sidebar */
 export function Sidebar({
   sessions, agents, activeId, filter, setFilter,
-  onOpen, onNew, onRename, onDelete, open, setOpen, theme, onToggleTheme, onOpenSettings, onOpenDevices,
+  onOpen, onNew, onRename, onDelete, open, setOpen, theme, onToggleTheme, onOpenSettings, onOpenDevices, onOpenSystem,
 }) {
   const [editing, setEditing] = useState(null);
   const [editTitle, setEditTitle] = useState("");
@@ -209,7 +209,7 @@ export function Sidebar({
         </nav>
 
         {/* user menu (Vercel-style; benchmark t3code SidebarChrome) */}
-        <UserMenu theme={theme} onToggleTheme={onToggleTheme} onOpenSettings={onOpenSettings} onOpenDevices={onOpenDevices} />
+        <UserMenu theme={theme} onToggleTheme={onToggleTheme} onOpenSettings={onOpenSettings} onOpenDevices={onOpenDevices} onOpenSystem={onOpenSystem} />
       </aside>
     </>
   );
@@ -570,53 +570,13 @@ export function SettingsPanel({ themePref, onSetTheme, currentTheme, onClose }) 
       </section>
 
       <PortSection />
-      <AboutSection />
     </div>
-  );
-}
-
-function AboutSection() {
-  const [info, setInfo] = useState(null);
-  useEffect(() => {
-    fetch("/api/server-info")
-      .then((r) => r.json())
-      .then(setInfo)
-      .catch(() => {});
-  }, []);
-  const rows = info
-    ? [
-        ["Version", info.version || "—"],
-        ["Execution mode", info.mode || "—"],
-      ]
-    : [];
-  return (
-    <section class="mt-10">
-      <h3 class="text-[11px] font-medium uppercase tracking-wider mb-3" style={{ color: "var(--text-3)" }}>About</h3>
-      <div class="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-        {rows.length === 0 && (
-          <div class="px-4 py-3 text-sm" style={{ color: "var(--text-3)" }}>loading…</div>
-        )}
-        {rows.map(([k, v], i) => (
-          <div
-            key={k}
-            class="flex items-center justify-between px-4 py-3"
-            style={{ background: "var(--bg-card)", borderTop: i ? "1px solid var(--border-soft)" : "none" }}
-          >
-            <span class="text-sm" style={{ color: "var(--text-2)" }}>{k}</span>
-            <span class="text-sm font-mono" style={{ color: "var(--text-1)" }}>{v}</span>
-          </div>
-        ))}
-      </div>
-      <p class="text-[11px] mt-3" style={{ color: "var(--text-3)" }}>
-        AgentDeck — the web cockpit for local AI agents. github.com/cfpperche/agentdeck
-      </p>
-    </section>
   );
 }
 
 
 /* ---------------------------------------------------------------- user menu */
-export function UserMenu({ theme, onToggleTheme, onOpenSettings, onOpenDevices }) {
+export function UserMenu({ theme, onToggleTheme, onOpenSettings, onOpenDevices, onOpenSystem }) {
   const [open, setOpen] = useState(false);
   const [info, setInfo] = useState(null);
   const ref = useRef(null);
@@ -671,6 +631,10 @@ export function UserMenu({ theme, onToggleTheme, onOpenSettings, onOpenDevices }
           <button role="menuitem" class={item} style={{ color: "var(--text-2)" }} onClick={() => { setOpen(false); onOpenDevices && onOpenDevices(); }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
             Devices
+          </button>
+          <button role="menuitem" class={item} style={{ color: "var(--text-2)" }} onClick={() => { setOpen(false); onOpenSystem && onOpenSystem(); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            System
           </button>
           <button role="menuitem" class={item} style={{ color: "var(--text-2)" }} onClick={() => onToggleTheme()}>
             {theme === "dark" ? (
