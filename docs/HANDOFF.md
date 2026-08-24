@@ -146,6 +146,12 @@ again: pass absolute CLI paths into bridges, never rely on lookup.
 - unauthenticated/flaky providers return EMPTY agent_end — the bridge converts that to a result:error so turns never hang
 - single reader rule again: replies route to per-id channels, events to one channel; never consume Events from two places
 
+### Terminal dock (2026-08-24, ADR-0008)
+- PiCode does NOT run TUI+RPC at once (their ADR-0006). We copy the dock, not the withdrawn dual-writer.
+- Opening Terminal stops the protocol process; Send stops the TUI and resumes RPC.
+- × on the dock detaches xterm only; tmux session lives until chat takes over or the session is deleted.
+- requires `tmux` on PATH.
+
 ### Codex app-server notes (2026-08-24)
 - transport: `codex app-server --stdio` (JSON-RPC NDJSON). Inbound replies **omit** `jsonrpc` — do not require the field (ACP Conn would drop every line).
 - `turn/start` result is an ACK (`status: inProgress`). Completion = `turn/completed`.

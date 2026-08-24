@@ -52,6 +52,7 @@ type StreamEvent struct {
 	Running   bool           `json:"running"`
 	Status    string         `json:"status,omitempty"`
 	Content   string         `json:"content,omitempty"`
+	Surface   string         `json:"surface,omitempty"` // chat | terminal (ADR-0008)
 	Name      string         `json:"name,omitempty"`
 	State     string         `json:"state,omitempty"`
 	Detail    string         `json:"detail,omitempty"`
@@ -76,6 +77,7 @@ type Runner struct {
 	mu      sync.Mutex
 	running map[string]context.CancelFunc // fallback cancels + live busy marker
 	live    map[string]*liveProc          // persistent tier-1 processes (ADR-0004)
+	tui     map[string]string             // sid → tmux session (ADR-0008)
 	state   map[string]SessionStatus
 	pending map[string][]StreamEvent       // unanswered permission requests, in order
 	caps    map[string]*agent.Capabilities // last reported composer surface
@@ -90,6 +92,7 @@ func New(reg *agent.Registry, st *store.Store, workspaces string) *Runner {
 		Registry: reg, Store: st, Workspaces: workspaces,
 		running: map[string]context.CancelFunc{},
 		live:    map[string]*liveProc{},
+		tui:     map[string]string{},
 		state:   map[string]SessionStatus{},
 		pending: map[string][]StreamEvent{},
 		caps:    map[string]*agent.Capabilities{},
@@ -182,6 +185,10 @@ func (r *Runner) PendingPermissions(sid string) []StreamEvent {
 // queued messages are delivered automatically when the turn ends.
 // Returns (queued, error): queued=true means accepted into the queue.
 func (r *Runner) Send(sid, text string, ctrls ...*agent.Controls) (bool, error) {
+	// ADR-0008: chat takes the session back from the TUI
+	if r.HasTUI(sid) {
+		r.StopTUI(sid)
+	}
 	if len(ctrls) > 0 && ctrls[0] != nil {
 		r.mu.Lock()
 		r.ctrls[sid] = ctrls[0] // per-session state; persists across turns

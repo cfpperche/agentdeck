@@ -19,3 +19,4 @@ For Cursor, architecture claims in studies must be marked as inference.
 
 - [2026-08-23 — Session management & composer](2026-08-23-sessions-and-composer.md)
 - [2026-08-24 — Cursor as design reference](2026-08-24-cursor-design-reference.md)
+- [2026-08-24 — PiCode terminal dock](2026-08-24-picode-terminal-dock.md)

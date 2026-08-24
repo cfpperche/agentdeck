@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { api, openEvents } from "./api.js";
 import { Message, Composer, ToolChip } from "./components.jsx";
+import { TerminalDock } from "./terminal.jsx";
 
 // Chat: one live session view (messages + SSE + composer + permission
 // banner). Designed to stay MOUNTED while hidden (tab switching) so
@@ -27,6 +28,9 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
   }, []);
 
   const [caps, setCaps] = useState(null);
+  const [surface, setSurface] = useState("chat"); // chat | terminal
+  const [dockOpen, setDockOpen] = useState(false);
+  const [tmuxName, setTmuxName] = useState("");
 
   useEffect(() => {
     setMessages(null);
@@ -37,6 +41,7 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
       if (ev.type === "state") {
         setRunning(ev.running);
         setStatus(ev.status || (ev.running ? "running" : "idle"));
+        if (ev.surface) setSurface(ev.surface);
       } else if (ev.type === "queue") setQueuedCount(ev.count || 0);
       else if (ev.type === "permission") {
         setPermissions((q) => [...q, { request_id: ev.request_id, tool: ev.tool, input: ev.input }]);
@@ -155,6 +160,10 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
         <div class="w-full max-w-3xl mx-auto px-4 md:px-6 py-6 flex-1 flex flex-col justify-end">
           {messages === null ? (
             <p class="text-center text-sm py-16" style={{ color: "var(--text-3)" }}>loading…</p>
+          ) : surface === "terminal" && !stream ? (
+            <p class="text-center text-sm py-16" style={{ color: "var(--text-3)" }}>
+              Agent is running in the terminal. Send a message to pair with chat, or use the Terminal button to show it.
+            </p>
           ) : messages.length === 0 && !stream ? (
             <p class="text-center text-sm py-16" style={{ color: "var(--text-3)" }}>
               send the first message to <span style={{ color: "var(--text-1)" }}>{agentMeta?.label}</span>
@@ -245,7 +254,32 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
         </button>
       )}
 
-      <Composer running={running} onSend={send} onStop={() => api.stop(sid)} sessionId={sid} agentId={session.agent} caps={caps} />
+      <Composer
+        running={running}
+        onSend={send}
+        onStop={() => api.stop(sid)}
+        sessionId={sid}
+        agentId={session.agent}
+        caps={caps}
+        termOpen={dockOpen}
+        onToggleTerm={async () => {
+          if (dockOpen) { setDockOpen(false); return; }
+          try {
+            const info = await api.openTerminal(sid);
+            setTmuxName(info.session || "");
+            setSurface("terminal");
+            setDockOpen(true);
+          } catch (e) {
+            showToast(e.detail || e.error || "terminal unavailable");
+          }
+        }}
+      />
+      <TerminalDock
+        open={dockOpen}
+        sessionName={tmuxName}
+        title={session.title || agentMeta?.label || "agent"}
+        onClose={() => setDockOpen(false)}
+      />
 
       {toast && (
         <div class="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-lg px-4 py-2.5 text-sm shadow-xl surface"

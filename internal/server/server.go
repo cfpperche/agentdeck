@@ -23,6 +23,8 @@ import (
 	"github.com/cfpperche/agentdeck/internal/presence"
 	"github.com/cfpperche/agentdeck/internal/runner"
 	"github.com/cfpperche/agentdeck/internal/store"
+	"github.com/cfpperche/agentdeck/internal/term"
+	"github.com/cfpperche/agentdeck/internal/tmux"
 )
 
 type Server struct {
@@ -69,6 +71,10 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/sessions/{id}/queue/cancel", s.handleQueueCancel)
 	mux.HandleFunc("POST /api/sessions/{id}/stop", s.handleStop)
 	mux.HandleFunc("GET /api/sessions/{id}/events", s.handleEvents)
+	mux.HandleFunc("GET /api/sessions/{id}/terminal", s.handleTermGet)
+	mux.HandleFunc("POST /api/sessions/{id}/terminal", s.handleTermOpen)
+	mux.HandleFunc("DELETE /api/sessions/{id}/terminal", s.handleTermClose)
+	mux.Handle("/ws/term", term.Bridge(tmux.New()))
 
 	return mux
 }
@@ -311,6 +317,7 @@ func (s *Server) handleRenameSession(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	s.Runner.Stop(id)
+	s.Runner.StopTUI(id)
 	ok, err := s.Store.DeleteSession(id, s.Runner.Workspaces)
 	if err != nil {
 		writeErr(w, 500, err.Error())
@@ -432,7 +439,8 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	// must still show the banner
 	st := s.Runner.Status(id)
 	snapshot, _ := json.Marshal(runner.StreamEvent{
-		Type: "state", Status: string(st), Running: st != runner.StatusIdle})
+		Type: "state", Status: string(st), Running: st != runner.StatusIdle,
+		Surface: s.Runner.Surface(id)})
 	w.Write([]byte("data: " + string(snapshot) + "\n\n"))
 	for _, pev := range s.Runner.PendingPermissions(id) {
 		if b, err := json.Marshal(pev); err == nil {

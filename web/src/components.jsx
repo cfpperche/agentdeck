@@ -271,7 +271,7 @@ export function Message({ m }) {
   );
 }
 
-export function Composer({ running, onSend, onStop, disabled, sessionId, agentId, caps }) {
+export function Composer({ running, onSend, onStop, disabled, sessionId, agentId, caps, termOpen, onToggleTerm }) {
   const [text, setText] = useState("");
   const ref = useRef(null);
   const [openMenu, setOpenMenu] = useState(null); // 'model' | 'think' | null
@@ -473,22 +473,36 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
                 );
               })()}
             </div>
-            {running ? (
-              <button
-                onClick={onStop}
-                class="h-8 w-8 shrink-0 grid place-items-center rounded-lg transition-colors active:scale-95"
-                style={{ background: "var(--err)", color: "#fff" }}
-                title="stop agent"
-              >{I.stop}</button>
-            ) : (
-              <button
-                onClick={submit}
-                disabled={disabled || !text.trim()}
-                class="h-8 w-8 shrink-0 grid place-items-center rounded-lg transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100"
-                style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-fg)" }}
-                title="send (Enter)"
-              >{I.send}</button>
-            )}
+            <div class="flex items-center gap-1.5 shrink-0">
+              {onToggleTerm && (
+                <button
+                  onClick={onToggleTerm}
+                  class="h-7 px-2 rounded-lg text-[12px] font-medium transition-colors"
+                  style={{
+                    background: termOpen ? "var(--bg-hover)" : "transparent",
+                    border: "1px solid var(--border)",
+                    color: termOpen ? "var(--text-1)" : "var(--text-2)",
+                  }}
+                  title="terminal"
+                >Terminal</button>
+              )}
+              {running ? (
+                <button
+                  onClick={onStop}
+                  class="h-8 w-8 shrink-0 grid place-items-center rounded-lg transition-colors active:scale-95"
+                  style={{ background: "var(--err)", color: "#fff" }}
+                  title="stop agent"
+                >{I.stop}</button>
+              ) : (
+                <button
+                  onClick={submit}
+                  disabled={disabled || !text.trim()}
+                  class="h-8 w-8 shrink-0 grid place-items-center rounded-lg transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100"
+                  style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-fg)" }}
+                  title="send (Enter)"
+                >{I.send}</button>
+              )}
+            </div>
           </div>
         </div>
       </div>

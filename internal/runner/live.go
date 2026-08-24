@@ -1,6 +1,7 @@
 // Live sessions (ADR-0004, tier 1): persistent bidirectional agent
-// processes — the web UI as a native client of the agent's protocol,
-// like the TUIs are. No tmux anywhere.
+// processes — the web UI as a native client of the agent's protocol.
+// The TUI dock (ADR-0008) is a separate exclusive process; never run
+// both against the same session.
 package runner
 
 import (

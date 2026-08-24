@@ -102,6 +102,9 @@ type Adapter struct {
 	// bridges emit the claude wire dialect regardless of the agent's
 	// own CLI format, so their streams must be read with parseClaude.
 	ParseLive func(line string) []Event
+	// BuildTUI, when non-nil, is the interactive TUI argv (ADR-0008).
+	// Exclusive with the protocol process — never run both.
+	BuildTUI func() []string
 }
 
 // Registry holds discovered agents, preserving stable order.

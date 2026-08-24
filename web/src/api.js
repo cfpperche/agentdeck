@@ -36,6 +36,11 @@ export const api = {
   stop: (id) => fetch(`/api/sessions/${id}/stop`, { method: "POST" }).then(json),
   clearQueue: (id) =>
     fetch(`/api/sessions/${id}/queue/cancel`, { method: "POST" }).then(json),
+  terminal: (id) => fetch(`/api/sessions/${id}/terminal`).then(json),
+  openTerminal: (id) =>
+    fetch(`/api/sessions/${id}/terminal`, { method: "POST" }).then(json),
+  closeTerminal: (id) =>
+    fetch(`/api/sessions/${id}/terminal`, { method: "DELETE" }).then(json),
 };
 
 export function openEvents(sid, onEvent) {

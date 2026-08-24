@@ -7,6 +7,12 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Terminal dock (ADR-0008)**: opt-in xterm.js panel (closed by
+  default, real header, × detaches). Opens the runtime's genuine TUI
+  in tmux; exclusive with the protocol process (PiCode ADR-0006
+  receipts — two writers corrupt pi session files). Send from chat
+  auto-pairs back to RPC. All five runtimes that ship a TUI binary
+  are wired (`Adapter.BuildTUI`); first dogfood target is pi.
 - **codex app-server driver (ADR-0007 tier-1)**: persistent
   `codex app-server --stdio` via `internal/codexbridge`. Live
   catalog from `model/list` (gpt-5.6-terra / 5.5 / 5.4-mini +

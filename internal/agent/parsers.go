@@ -36,6 +36,7 @@ var adapterSpecs = []spec{
 				return argv // thinking: SDK-only today
 			},
 			BuildLive: buildClaudeLive(p),
+			BuildTUI:  func() []string { return []string{p} },
 			Parse:     parseClaude,
 		}
 	}},
@@ -44,6 +45,7 @@ var adapterSpecs = []spec{
 			ID: "codex", Label: "Codex", Color: "#33B08C",
 			BuildLive: buildCodexLive(selfExe(), p),
 			ParseLive: parseClaude, // bridge emits the claude dialect
+			BuildTUI:  func() []string { return []string{p} },
 			Build: func(text, ref, cwd string, hasHistory bool) []string {
 				if ref != "" {
 					return []string{p, "exec", "resume", ref, "--json",
@@ -88,6 +90,7 @@ var adapterSpecs = []spec{
 			ID: "grok", Label: "Grok", Color: "#C9CEDC",
 			BuildLive: buildGrokLive(selfExe(), p),
 			ParseLive: parseClaude, // ACP bridge emits the claude dialect
+			BuildTUI:  func() []string { return []string{p} },
 			Build: func(text, ref, cwd string, hasHistory bool) []string {
 				argv := []string{p, "--output-format", "streaming-json"}
 				switch {
@@ -116,6 +119,7 @@ var adapterSpecs = []spec{
 			ID: "pi", Label: "Pi", Color: "#7DA2F7",
 			BuildLive: buildPiLive(selfExe(), p),
 			ParseLive: parseClaude, // bridge emits the claude dialect
+			BuildTUI:  func() []string { return []string{p} },
 			Build: func(text, ref, cwd string, hasHistory bool) []string {
 				argv := []string{p, "-p", "--mode", "json"}
 				if ref != "" {
@@ -141,6 +145,7 @@ var adapterSpecs = []spec{
 			ID: "opencode", Label: "OpenCode", Color: "#E5C558",
 			BuildLive: buildOpenCodeLive(selfExe(), p),
 			ParseLive: parseClaude, // ACP bridge emits the claude dialect
+			BuildTUI:  func() []string { return []string{p} },
 			Build: func(text, ref, cwd string, hasHistory bool) []string {
 				argv := []string{p, "run", "--format", "json", "--dir", cwd}
 				if ref != "" {
