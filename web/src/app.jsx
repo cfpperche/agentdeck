@@ -156,7 +156,7 @@ export function App() {
         setOpen={setSidebarOpen}
         theme={theme.current}
         onToggleTheme={theme.toggle}
-        onOpenSettings={() => { setSettingsOpen(true); setActiveId(null); setOpenTabsAndActive(openTabs.map((t) => t.id), null); }}
+        onOpenSettings={() => { setSettingsOpen(true); setActiveId(null); history.pushState({}, "", "/settings"); }}
       />
 
       <main class="flex-1 flex flex-col min-w-0" style={{ background: "var(--bg-canvas)" }}>

@@ -7,6 +7,12 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **User menu (Vercel-style) at the sidebar bottom** (benchmark:
+  t3code SidebarChrome + Vercel dashboard): avatar with initials,
+  username + execution mode from /api/server-info (now also exposes
+  user/host), dropdown opens upward — Settings route, quick theme
+  toggle, version/status footer. Closes on outside-click/Escape.
+  Replaces the old static "local agents online" bar (the gear button).
 - **Create folders from the cwd browser**: `POST /api/fs/mkdir`
   (parents allowed; guardrails: absolute paths only, restricted to the
   user's home, 409 on duplicates, rejects files) + a "new folder" row

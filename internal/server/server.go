@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -151,8 +152,14 @@ func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleServerInfo(w http.ResponseWriter, r *http.Request) {
+	username := "you"
+	if u, err := user.Current(); err == nil && u.Username != "" {
+		username = u.Username
+	}
+	host, _ := os.Hostname()
 	writeJSON(w, http.StatusOK, map[string]string{
 		"mode": s.Mode, "version": s.Version,
+		"user": username, "host": host,
 	})
 }
 

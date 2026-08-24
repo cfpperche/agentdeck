@@ -205,14 +205,8 @@ export function Sidebar({
           )}
         </nav>
 
-        {/* status footer */}
-        <div
-          class="flex items-center gap-2 px-4 h-11 text-[11px] shrink-0" style={{ color: "var(--text-3)" }}
-          style={{ borderTop: "1px solid var(--border-soft)" }}
-        >
-          <span class="h-[6px] w-[6px] rounded-full" style={{ background: "var(--ok)" }} />
-          local agents online
-        </div>
+        {/* user menu (Vercel-style; benchmark t3code SidebarChrome) */}
+        <UserMenu theme={theme} onToggleTheme={onToggleTheme} onOpenSettings={onOpenSettings} />
       </aside>
     </>
   );
@@ -442,5 +436,81 @@ function AboutSection() {
         AgentDeck — the web cockpit for local AI agents. github.com/cfpperche/agentdeck
       </p>
     </section>
+  );
+}
+
+
+/* ---------------------------------------------------------------- user menu */
+export function UserMenu({ theme, onToggleTheme, onOpenSettings }) {
+  const [open, setOpen] = useState(false);
+  const [info, setInfo] = useState(null);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    fetch("/api/server-info").then((r) => r.json()).then(setInfo).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    const esc = (e) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+
+  const user = info?.user || "you";
+  const mode = info?.mode || "personal";
+  const item = "w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-[13px] surface hover:bg-[color:var(--bg-hover)]";
+
+  return (
+    <div ref={ref} class="relative shrink-0" style={{ borderTop: "1px solid var(--border-soft)" }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        class="w-full flex items-center gap-2.5 px-3 h-12 surface hover:bg-[color:var(--bg-hover)]"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <span class="h-7 w-7 rounded-full grid place-items-center text-[11px] font-semibold shrink-0"
+          style={{ background: "var(--bg-raised)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
+          {user.slice(0, 2).toUpperCase()}
+        </span>
+        <span class="flex-1 min-w-0 text-left">
+          <span class="block text-[12.5px] truncate" style={{ color: "var(--text-1)" }}>{user}</span>
+          <span class="block text-[10.5px]" style={{ color: "var(--text-3)" }}>localhost · {mode}</span>
+        </span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2.2" stroke-linecap="round" style={{ transform: open ? "rotate(180deg)" : "", transition: "transform 150ms" }}><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+
+      {open && (
+        <div role="menu"
+          class="absolute bottom-[calc(100%+4px)] left-2 right-2 rounded-xl overflow-hidden z-50"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "var(--shadow)" }}>
+          <button role="menuitem" class={item} style={{ color: "var(--text-2)" }} onClick={() => { setOpen(false); onOpenSettings(); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.09a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.09a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.09a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z"/></svg>
+            Settings
+          </button>
+          <button role="menuitem" class={item} style={{ color: "var(--text-2)" }} onClick={() => onToggleTheme()}>
+            {theme === "dark" ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+            )}
+            {theme === "dark" ? "Light mode" : "Dark mode"}
+          </button>
+          <div style={{ borderTop: "1px solid var(--border-soft)" }}>
+            <div class="flex items-center gap-2 px-3 py-2">
+              <span class="h-1.5 w-1.5 rounded-full" style={{ background: "var(--ok)" }} />
+              <span class="text-[11px]" style={{ color: "var(--text-3)" }}>
+                AgentDeck {info?.version || ""} · agents online
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
