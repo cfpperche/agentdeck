@@ -96,46 +96,55 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
 
   return (
     <div class="flex-1 flex flex-col min-w-0 relative" style={{ background: "var(--bg-canvas)" }}>
-      {/* slim toolbar: state only — the TAB is the title (no duplication) */}
-      <header class="flex items-center gap-2 h-10 px-4 shrink-0 surface"
-        style={{ background: "var(--bg-panel)", borderBottom: "1px solid var(--border-soft)" }}>
-        {onOpenSidebar && (
-          <button class="md:hidden p-1.5 -ml-1.5" style={{ color: "var(--text-2)" }} onClick={onOpenSidebar} aria-label="menu">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-          </button>
-        )}
-        {session.cwd && (
-          <span class="text-[11px] font-mono px-2 py-0.5 rounded-md truncate"
-            title={session.cwd}
-            style={{ color: "var(--text-3)", background: "var(--bg-raised)" }}>
-            {session.cwd.split("/").filter(Boolean).pop() || "/"}
-          </span>
-        )}
-        <div class="ml-auto flex items-center gap-2 shrink-0">
-          {queuedCount > 0 && (
-            <button onClick={() => api.clearQueue(sid).then(() => setQueuedCount(0))}
-              class="text-[11px]" style={{ color: "var(--accent-fg)" }}>
-              {queuedCount} queued · cancel
-            </button>
-          )}
-          {status === "waiting" && (
-            <span class="flex items-center gap-1.5 text-xs" style={{ color: "var(--warn)" }}>
-              <span class="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--warn)" }} />waiting
-            </span>
-          )}
-          {status === "running" && (
-            <span class="flex items-center gap-1.5 text-xs" style={{ color: "var(--ok)" }}>
-              <span class="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--ok)" }} />running
-            </span>
-          )}
-          {running && !onStop && null}
-          {onStop && running && (
-            <button onClick={onStop} class="text-[11px] px-2 h-6 rounded-md"
-              style={{ border: "1px solid var(--err-border)", color: "var(--err)" }}>stop</button>
-          )}
-        </div>
-      </header>
-
+      {/* slim state toolbar — renders ONLY when it has content:
+          cwd badge, status, queue or stop (desktop), or on mobile where
+          it hosts the menu button. Otherwise no ghost band under the tab
+          (user report: empty gray strip). */}
+      {(() => {
+        const isMobile = typeof matchMedia !== "undefined" && matchMedia("(max-width: 767px)").matches;
+        const hasCwd = !!session.cwd;
+        const hasState = status === "waiting" || status === "running" || queuedCount > 0;
+        if (!isMobile && !hasCwd && !hasState) return null;
+        return (
+          <header class="flex items-center gap-2 h-10 px-4 shrink-0 surface"
+            style={{ background: "var(--bg-panel)", borderBottom: "1px solid var(--border-soft)" }}>
+            {onOpenSidebar && isMobile && (
+              <button class="p-1.5 -ml-1.5" style={{ color: "var(--text-2)" }} onClick={onOpenSidebar} aria-label="menu">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+              </button>
+            )}
+            {hasCwd && (
+              <span class="text-[11px] font-mono px-2 py-0.5 rounded-md truncate"
+                title={session.cwd}
+                style={{ color: "var(--text-3)", background: "var(--bg-raised)" }}>
+                {session.cwd.split("/").filter(Boolean).pop() || "/"}
+              </span>
+            )}
+            <div class="ml-auto flex items-center gap-2 shrink-0">
+              {queuedCount > 0 && (
+                <button onClick={() => api.clearQueue(sid).then(() => setQueuedCount(0))}
+                  class="text-[11px]" style={{ color: "var(--accent-fg)" }}>
+                  {queuedCount} queued · cancel
+                </button>
+              )}
+              {status === "waiting" && (
+                <span class="flex items-center gap-1.5 text-xs" style={{ color: "var(--warn)" }}>
+                  <span class="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--warn)" }} />waiting
+                </span>
+              )}
+              {status === "running" && (
+                <span class="flex items-center gap-1.5 text-xs" style={{ color: "var(--ok)" }}>
+                  <span class="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--ok)" }} />running
+                </span>
+              )}
+              {onStop && running && (
+                <button onClick={onStop} class="text-[11px] px-2 h-6 rounded-md"
+                  style={{ border: "1px solid var(--err-border)", color: "var(--err)" }}>stop</button>
+              )}
+            </div>
+          </header>
+        );
+      })()}
       {/* messages */}
       <div ref={listRef} onScroll={onScroll} class="flex-1 overflow-y-auto" style={{ display: "flex", flexDirection: "column" }}>
         <div class="w-full max-w-3xl mx-auto px-4 md:px-6 py-6 flex-1 flex flex-col justify-end">

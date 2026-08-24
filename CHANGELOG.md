@@ -151,6 +151,11 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
   (see `AGENTS.md`).
 
 ### Fixed
+- Ghost toolbar band: the (now state-only) chat toolbar rendered even
+  when empty on desktop — a ~59px gray strip under the tab bar, taller
+  than the tab bar itself (user report). It now renders only when it
+  has content (cwd badge, status, queue, stop) or on mobile (menu
+  button). Verified: zero visible headers on a fresh desktop session.
 - Agent discovery missed user-local installs under systemd: the
   registry only consulted PATH, and service environments don't include
   ~/.local/bin or ~/.bun/bin — claude, grok and opencode vanished from
