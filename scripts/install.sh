@@ -51,7 +51,7 @@ say "installing ${VERSION} (${BIN_NAME})"
 # --- download + verify ------------------------------------------------------
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
-curl -fL --progress-bar -o "$TMP/agentdeck"      "${BASE_URL}/${BIN_NAME}"
+curl -fL --progress-bar -o "$TMP/${BIN_NAME}" "${BASE_URL}/${BIN_NAME}"
 curl -fsSL           -o "$TMP/SHA256SUMS"        "${BASE_URL}/SHA256SUMS"
 
 (cd "$TMP" && grep " ${BIN_NAME}\$" SHA256SUMS | sha256sum -c -) \
@@ -60,7 +60,7 @@ curl -fsSL           -o "$TMP/SHA256SUMS"        "${BASE_URL}/SHA256SUMS"
 # --- install ----------------------------------------------------------------
 DEST="${HOME}/.local/bin"
 mkdir -p "$DEST"
-install -m 0755 "$TMP/agentdeck" "${DEST}/agentdeck"
+install -m 0755 "$TMP/${BIN_NAME}" "${DEST}/agentdeck"
 case ":$PATH:" in
   *":${DEST}:"*) ;;
   *) say "NOTE: ${DEST} is not on your PATH — add it to your shell profile." ;;
