@@ -42,6 +42,8 @@ var adapterSpecs = []spec{
 	{"codex", func(p string) Adapter {
 		return Adapter{
 			ID: "codex", Label: "Codex", Color: "#33B08C",
+			BuildLive: buildCodexLive(selfExe(), p),
+			ParseLive: parseClaude, // bridge emits the claude dialect
 			Build: func(text, ref, cwd string, hasHistory bool) []string {
 				if ref != "" {
 					return []string{p, "exec", "resume", ref, "--json",

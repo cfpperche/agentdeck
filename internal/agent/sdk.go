@@ -93,6 +93,15 @@ func buildOpenCodeLive(exe, cliPath string) func(ref, cwd string) []string {
 	}
 }
 
+// buildCodexLive (ADR-0007): Codex 0.149 app-server (JSON-RPC NDJSON
+// over stdio). Driven through our embedded bridge. Always pass an
+// absolute CLI path — systemd PATH is empty (HANDOFF).
+func buildCodexLive(exe, cliPath string) func(ref, cwd string) []string {
+	return func(ref, cwd string) []string {
+		return []string{exe, "__codexas", cliPath}
+	}
+}
+
 // buildGrokLive (ADR-0007): grok 1.0.5+ speaks ACP on
 // `grok agent stdio` (receipts: ~/.grok/docs/user-guide/15-agent-mode.md,
 // live handshake 2026-08-24). Same generic bridge as opencode; argv

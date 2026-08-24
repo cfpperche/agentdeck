@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/cfpperche/agentdeck/internal/acp"
+	"github.com/cfpperche/agentdeck/internal/codexbridge"
 	pibridge "github.com/cfpperche/agentdeck/internal/pibridge"
 	"github.com/cfpperche/agentdeck/internal/agent"
 	"github.com/cfpperche/agentdeck/internal/config"
@@ -66,6 +67,40 @@ func main() {
 			}
 			if err := pibridge.Run(stdout, stdin); err != nil {
 				log.Printf("pi bridge: %v", err)
+				stdin.Close()
+				cmd.Wait()
+				os.Exit(1)
+			}
+			stdin.Close()
+			cmd.Wait()
+			return
+		}
+		if a == "__codexas" {
+			// ADR-0007: Codex app-server JSON-RPC <-> our wire
+			args := os.Args[i+2:]
+			if len(args) == 0 {
+				log.Fatal("__codexas needs the codex command")
+			}
+			cmd := exec.Command(args[0], append([]string{"app-server", "--stdio"}, args[1:]...)...)
+			cmd.Env = os.Environ()
+			if home, herr := os.UserHomeDir(); herr == nil {
+				for _, dir := range []string{".bun/bin", ".local/bin", ".pi/agent/bin"} {
+					cmd.Env = append(cmd.Env, "PATH="+os.Getenv("PATH")+":"+filepath.Join(home, dir))
+				}
+				// Codex reads credentials from $CODEX_HOME (default ~/.codex).
+				// A remapped HOME (tests, some units) 401s — pin it.
+				if os.Getenv("CODEX_HOME") == "" {
+					cmd.Env = append(cmd.Env, "CODEX_HOME="+filepath.Join(home, ".codex"))
+				}
+			}
+			stdin, _ := cmd.StdinPipe()
+			stdout, _ := cmd.StdoutPipe()
+			cmd.Stderr = os.Stderr
+			if err := cmd.Start(); err != nil {
+				log.Fatalf("codex spawn: %v", err)
+			}
+			if err := codexbridge.Run(stdout, stdin); err != nil {
+				log.Printf("codex bridge: %v", err)
 				stdin.Close()
 				cmd.Wait()
 				os.Exit(1)

@@ -7,6 +7,15 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **codex app-server driver (ADR-0007 tier-1)**: persistent
+  `codex app-server --stdio` via `internal/codexbridge`. Live
+  catalog from `model/list` (gpt-5.6-terra / 5.5 / 5.4-mini +
+  reasoning efforts), mid-session model/effort on `turn/start`,
+  streaming `item/agentMessage/delta`, turn completion on
+  `turn/completed` (start is ack-only). Approvals map to the
+  existing permission banner. Always picks a model from the live
+  catalog — the config.toml default (`gpt-5.6-sol`) 400s on
+  ChatGPT accounts.
 - **grok ACP driver (ADR-0007 tier-2)**: `grok agent stdio` is a
   real ACP server (docs in `~/.grok` + live handshake on 1.0.5).
   Reuses the generic `__acp` bridge; argv is `agent stdio` not

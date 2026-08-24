@@ -22,6 +22,12 @@ Feasibility spikes on this machine (2026-08-24, receipts):
 - **pi**: `--mode rpc` — own bidirectional RPC protocol.
 - **codex**: `app-server` (experimental) — own JSON-RPC protocol;
   t3code drives codex through exactly this.
+  **Amended 2026-08-24:** Codex 0.149 `app-server --stdio` is live
+  (schema via `generate-json-schema` + handshake). initialize →
+  initialized → model/list → thread/start → turn/start (ack) →
+  item/agentMessage/delta → turn/completed. Inbound replies omit
+  `jsonrpc`. Default model from ~/.codex/config.toml may be invalid
+  on ChatGPT accounts — always pass a model from model/list.
 - **grok**: CLI only (streaming-json + resume flags).
   **Amended 2026-08-24:** grok 1.0.5 speaks ACP via `grok agent
   stdio` (receipts: `~/.grok/docs/user-guide/15-agent-mode.md` +
@@ -37,8 +43,8 @@ Feasibility spikes on this machine (2026-08-24, receipts):
 Three driver tiers, best available per agent:
 
 1. **Native driver** — richest protocol the agent offers:
-   claude via Agent SDK shim (ADR-0005). Later: pi rpc, codex
-   app-server.
+   claude via Agent SDK shim (ADR-0005), pi `--mode rpc`,
+   codex `app-server`.
 2. **ACP driver** — one generic client for any Agent-Client-Protocol
    agent. Targets: opencode (`opencode acp`) and grok
    (`grok agent stdio`). Future agents (gemini) join by
@@ -61,4 +67,4 @@ parser already normalizes it.
 - One new integration surface to maintain (the ACP client); contained
   in `internal/acp` + a bridge entrypoint.
 - Agents without any protocol stay on tier-3 honestly (none of the
-  five installed runtimes, as of grok ACP).
+  five installed runtimes, as of the Codex app-server driver).

@@ -224,17 +224,15 @@ func DefaultCaps(agentID string) *Capabilities {
 			},
 		}
 	case "codex":
+		think := []SelectOption{
+			{ID: "low", Label: "Low", IsDefault: true}, {ID: "medium", Label: "Medium"},
+			{ID: "high", Label: "High"}, {ID: "xhigh", Label: "Extra high"},
+		}
 		return &Capabilities{
 			Models: []ModelDef{
-				{ID: "gpt-5-codex", Label: "GPT-5 Codex", IsDefault: true,
-					ThinkingOptions: []SelectOption{
-						{ID: "low", Label: "Low"}, {ID: "medium", Label: "Medium"},
-						{ID: "high", Label: "High"}, {ID: "minimal", Label: "Minimal"},
-					}},
-				{ID: "gpt-5", Label: "GPT-5",
-					ThinkingOptions: []SelectOption{
-						{ID: "low", Label: "Low"}, {ID: "medium", Label: "Medium"}, {ID: "high", Label: "High"},
-					}},
+				{ID: "gpt-5.6-terra", Label: "GPT-5.6 Terra", IsDefault: true, ThinkingOptions: think},
+				{ID: "gpt-5.5", Label: "GPT-5.5", ThinkingOptions: think},
+				{ID: "gpt-5.4-mini", Label: "GPT-5.4 Mini", ThinkingOptions: think},
 			},
 			Modes: []ModeDef{
 				{ID: "manual", Label: "Ask before edits", Description: "Sandbox: workspace-write (default)"},
