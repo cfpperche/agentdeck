@@ -2,6 +2,7 @@ package runner
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -50,7 +51,7 @@ func TestSDKShimMemoryAndPermission(t *testing.T) {
 	os.Remove("/tmp/agentdeck-sdk-fake.txt")
 	r, st := newSDKRunner(t)
 
-	ss, _ := st.CreateSession("claude", "")
+	ss, _ := st.CreateSession("claude", "", "")
 
 	// turn 1: plant fact (same shim process holds memory)
 	if _, err := r.Send(ss.ID, "Remember: go sdk chain works"); err != nil {
@@ -109,7 +110,7 @@ func TestPermissionQueueAndEditedInput(t *testing.T) {
 	t.Setenv("FAKE_PARALLEL", "1")
 	r, st := newSDKRunner(t)
 
-	ss, _ := st.CreateSession("claude", "")
+	ss, _ := st.CreateSession("claude", "", "")
 	ch, unsub := r.Subscribe(ss.ID)
 	defer unsub()
 
@@ -166,5 +167,24 @@ collect:
 	// queue drained
 	if q := r.PendingPermissions(ss.ID); len(q) != 0 {
 		t.Fatalf("queue not drained: %d", len(q))
+	}
+}
+
+func TestSessionCwdUsed(t *testing.T) {
+	// a session with a user-picked cwd must spawn the live process there
+	dir := t.TempDir()
+	r, st := newSDKRunner(t)
+	ss, err := st.CreateSession("claude", "", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Send(ss.ID, "hello cwd"); err != nil {
+		t.Fatal(err)
+	}
+	waitAssistant(t, st, ss.ID, 1)
+	pid := r.livePID(t, ss.ID)
+	cwdLink, _ := os.Readlink(fmt.Sprintf("/proc/%d/cwd", pid))
+	if cwdLink != dir {
+		t.Fatalf("live process cwd = %q, want %q", cwdLink, dir)
 	}
 }

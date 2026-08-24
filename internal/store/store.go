@@ -24,6 +24,7 @@ type Session struct {
 	Agent        string `json:"agent"`
 	Title        string `json:"title"`
 	AgentRef     string `json:"agent_ref"`
+	Cwd          string `json:"cwd,omitempty"`
 	CreatedAt    string `json:"created_at"`
 	UpdatedAt    string `json:"updated_at"`
 	MessageCount int    `json:"message_count"`
@@ -51,6 +52,7 @@ CREATE TABLE IF NOT EXISTS sessions(
     agent TEXT NOT NULL,
     title TEXT NOT NULL DEFAULT 'New session',
     agent_ref TEXT,
+    cwd TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -83,6 +85,19 @@ func Open(dir string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	// lightweight migration: add missing columns (idempotent)
+	for col, ddl := range map[string]string{
+		"cwd": "ALTER TABLE sessions ADD COLUMN cwd TEXT",
+	} {
+		var n int
+		db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name=?", col).Scan(&n)
+		if n == 0 {
+			if _, err := db.Exec(ddl); err != nil {
+				db.Close()
+				return nil, err
+			}
+		}
+	}
 	return &Store{db: db, path: dir}, nil
 }
 
@@ -98,15 +113,15 @@ func newID() string {
 
 // CreateSession inserts a session; title defaults to "New session"
 // (the runner auto-titles from the first message).
-func (s *Store) CreateSession(agent, title string) (*Session, error) {
+func (s *Store) CreateSession(agent, title, cwd string) (*Session, error) {
 	id := newID()
 	t := now()
 	if title == "" {
 		title = "New session"
 	}
 	_, err := s.db.Exec(
-		`INSERT INTO sessions(id, agent, title, created_at, updated_at)
-		 VALUES(?,?,?,?,?)`, id, agent, title, t, t)
+		`INSERT INTO sessions(id, agent, title, cwd, created_at, updated_at)
+		 VALUES(?,?,?,?,?,?)`, id, agent, title, cwd, t, t)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +134,7 @@ func (s *Store) GetSession(id string) (*Session, error) {
 }
 
 const sessionSelect = `
-SELECT s.id, s.agent, s.title, IFNULL(s.agent_ref,''), s.created_at, s.updated_at,
+SELECT s.id, s.agent, s.title, IFNULL(s.agent_ref,''), IFNULL(s.cwd,''), s.created_at, s.updated_at,
        (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id) AS message_count,
        (SELECT m.content FROM messages m WHERE m.session_id = s.id
          ORDER BY m.id DESC LIMIT 1) AS preview
@@ -128,7 +143,7 @@ FROM sessions s`
 func scanSession(row *sql.Row) (*Session, error) {
 	var ss Session
 	var preview sql.NullString
-	err := row.Scan(&ss.ID, &ss.Agent, &ss.Title, &ss.AgentRef,
+	err := row.Scan(&ss.ID, &ss.Agent, &ss.Title, &ss.AgentRef, &ss.Cwd,
 		&ss.CreatedAt, &ss.UpdatedAt, &ss.MessageCount, &preview)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -150,7 +165,7 @@ func (s *Store) ListSessions() ([]Session, error) {
 	for rows.Next() {
 		var ss Session
 		var preview sql.NullString
-		if err := rows.Scan(&ss.ID, &ss.Agent, &ss.Title, &ss.AgentRef,
+		if err := rows.Scan(&ss.ID, &ss.Agent, &ss.Title, &ss.AgentRef, &ss.Cwd,
 			&ss.CreatedAt, &ss.UpdatedAt, &ss.MessageCount, &preview); err != nil {
 			return nil, err
 		}

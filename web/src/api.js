@@ -3,11 +3,11 @@ const json = (r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(e)));
 export const api = {
   agents: () => fetch("/api/agents").then(json),
   sessions: () => fetch("/api/sessions").then(json),
-  createSession: (agent, title) =>
+  createSession: (agent, cwd) =>
     fetch("/api/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agent, title }),
+      body: JSON.stringify(cwd ? { agent, cwd } : { agent }),
     }).then(json),
   renameSession: (id, title) =>
     fetch(`/api/sessions/${id}`, {

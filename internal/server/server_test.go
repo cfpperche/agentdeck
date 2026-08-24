@@ -220,3 +220,38 @@ func listSessions(t *testing.T, ts *httptest.Server) []store.Session {
 	json.NewDecoder(resp.Body).Decode(&ss)
 	return ss
 }
+
+func TestFsDirsAndSessionCwd(t *testing.T) {
+	ts := newTestServer(t)
+
+	// fs listing: directories only, hidden filtered
+	resp, _ := http.Get(ts.URL + "/api/fs/dirs?path=" + t.TempDir())
+	if resp.StatusCode != 200 {
+		t.Fatalf("fs/dirs status = %d", resp.StatusCode)
+	}
+	var body struct {
+		Path string                        `json:"path"`
+		Dirs []struct{ Name, Path string } `json:"dirs"`
+	}
+	json.NewDecoder(resp.Body).Decode(&body)
+
+	// create a session with cwd
+	dir := t.TempDir()
+	resp, _ = http.Post(ts.URL+"/api/sessions", "application/json",
+		strings.NewReader(`{"agent":"claude","cwd":"`+dir+`"}`))
+	if resp.StatusCode != 200 {
+		t.Fatalf("create with cwd = %d", resp.StatusCode)
+	}
+	var ss store.Session
+	json.NewDecoder(resp.Body).Decode(&ss)
+	if ss.Cwd != dir {
+		t.Fatalf("cwd = %q, want %q", ss.Cwd, dir)
+	}
+
+	// invalid cwd → 400
+	resp, _ = http.Post(ts.URL+"/api/sessions", "application/json",
+		strings.NewReader(`{"agent":"claude","cwd":"/nonexistent-dir-xyz"}`))
+	if resp.StatusCode != 400 {
+		t.Errorf("invalid cwd status = %d, want 400", resp.StatusCode)
+	}
+}

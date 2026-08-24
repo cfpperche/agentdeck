@@ -18,7 +18,7 @@ func openTemp(t *testing.T) *Store {
 func TestSessionCRUD(t *testing.T) {
 	s := openTemp(t)
 
-	ss, err := s.CreateSession("claude", "")
+	ss, err := s.CreateSession("claude", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

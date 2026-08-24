@@ -61,7 +61,7 @@ func waitAssistant(t *testing.T, st *store.Store, sid string, n int) []store.Mes
 func TestLiveMemoryInOneProcess(t *testing.T) {
 	r, st := newLiveRunner(t, nil)
 
-	ss, _ := st.CreateSession("claude", "")
+	ss, _ := st.CreateSession("claude", "", "")
 	if _, err := r.Send(ss.ID, "Remember: secret is 777"); err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestLivePermissionRoundTrip(t *testing.T) {
 	os.Remove("/tmp/agentdeck-live.txt")
 	r, st := newLiveRunner(t, map[string]string{"FAKE_ASK": "1"})
 
-	ss, _ := st.CreateSession("claude", "")
+	ss, _ := st.CreateSession("claude", "", "")
 
 	var mu sync.Mutex
 	var permEvt *StreamEvent
@@ -173,7 +173,7 @@ func TestLivePermissionRoundTrip(t *testing.T) {
 func TestLiveCrashRestarts(t *testing.T) {
 	r, st := newLiveRunner(t, map[string]string{"FAKE_CRASH_AFTER": "1"})
 
-	ss, _ := st.CreateSession("claude", "")
+	ss, _ := st.CreateSession("claude", "", "")
 	if _, err := r.Send(ss.ID, "hello one"); err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +205,7 @@ func TestLiveCrashRestarts(t *testing.T) {
 
 func TestControlNoLiveProcess(t *testing.T) {
 	r, st := newLiveRunner(t, nil)
-	ss, _ := st.CreateSession("claude", "")
+	ss, _ := st.CreateSession("claude", "", "")
 	if err := r.Control(ss.ID, "x", "allow", nil); err == nil {
 		t.Error("expected error controlling a session with no live process")
 	}
@@ -262,7 +262,7 @@ func TestWaitingStateTransitions(t *testing.T) {
 	os.Remove("/tmp/agentdeck-live.txt")
 	r, st := newLiveRunner(t, map[string]string{"FAKE_ASK": "1"})
 
-	ss, _ := st.CreateSession("claude", "")
+	ss, _ := st.CreateSession("claude", "", "")
 	ch, unsub := r.Subscribe(ss.ID)
 	defer unsub()
 
@@ -305,7 +305,7 @@ func TestWaitingStateTransitions(t *testing.T) {
 func TestQueuedSteeringDelivered(t *testing.T) {
 	r, st := newLiveRunner(t, nil)
 
-	ss, _ := st.CreateSession("claude", "")
+	ss, _ := st.CreateSession("claude", "", "")
 	ch, unsub := r.Subscribe(ss.ID)
 	defer unsub()
 

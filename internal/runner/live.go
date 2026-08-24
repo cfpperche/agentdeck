@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -66,8 +65,7 @@ func (r *Runner) ensureLive(sid string, adapter agent.Adapter) (*liveProc, error
 	if err != nil || ss == nil {
 		return nil, os.ErrNotExist
 	}
-	cwd := filepath.Join(r.Workspaces, sid)
-	os.MkdirAll(cwd, 0o755)
+	cwd := r.sessionDir(sid, ss.Cwd)
 	argv := adapter.BuildLive(ss.AgentRef, cwd)
 
 	cmd := exec.CommandContext(context.Background(), argv[0], argv[1:]...)

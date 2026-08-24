@@ -5,7 +5,7 @@ import { Message, Composer, ToolChip } from "./components.jsx";
 // Chat: one live session view (messages + SSE + composer + permission
 // banner). Designed to stay MOUNTED while hidden (tab switching) so
 // streams/drafts/permissions survive.
-export function Chat({ session, agentMeta, onOpenSidebar, onHide }) {
+export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated }) {
   const sid = session.id;
   const [messages, setMessages] = useState(null); // null = loading
   const [stream, setStream] = useState(null);
@@ -19,7 +19,7 @@ export function Chat({ session, agentMeta, onOpenSidebar, onHide }) {
   const [atBottom, setAtBottom] = useState(true);
   const esRef = useRef(null);
   const listRef = useRef(null);
-  const shown = !onHide; // visible when no hide callback (active tab)
+  const shown = true; // hidden tabs keep state via display:none (parent controls)
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -45,6 +45,7 @@ export function Chat({ session, agentMeta, onOpenSidebar, onHide }) {
         api.messages(sid).then(setMessages).catch(() => {});
         setStream(null);
         setQueuedCount((q) => Math.max(0, q - 1));
+        onSessionUpdated?.(); // auto-title may have changed the session
       }
     });
     esRef.current = es;
@@ -108,6 +109,13 @@ export function Chat({ session, agentMeta, onOpenSidebar, onHide }) {
         <span class="text-xs px-2 py-0.5 rounded-md shrink-0" style={{ color: "var(--text-2)", background: "var(--bg-raised)" }}>
           {agentMeta?.label || session.agent}
         </span>
+        {session.cwd && (
+          <span class="text-[11px] font-mono px-2 py-0.5 rounded-md shrink-0 hidden sm:inline"
+            title={session.cwd}
+            style={{ color: "var(--text-3)", background: "var(--bg-raised)" }}>
+            {session.cwd.split("/").filter(Boolean).pop() || "/"}
+          </span>
+        )}
         <div class="ml-auto flex items-center gap-2 shrink-0">
           {queuedCount > 0 && (
             <button onClick={() => api.clearQueue(sid).then(() => setQueuedCount(0))}

@@ -221,8 +221,8 @@ export function App() {
         ) : activeId === NEW_TAB_ID ? (
           <NewSessionPanel
             agents={agents}
-            onCreate={(agentId) => {
-              api.createSession(agentId).then((s) => {
+            onCreate={(agentId, cwd) => {
+              api.createSession(agentId, cwd).then((s) => {
                 refreshSessions();
                 const ids = openTabs.map((t) => t.id).filter((x) => x !== NEW_TAB_ID);
                 setOpenTabsAndActive([...ids, s.id], s.id);
@@ -237,6 +237,7 @@ export function App() {
                   session={t}
                   agentMeta={agentById[t.agent]}
                   onOpenSidebar={() => setSidebarOpen(true)}
+                  onSessionUpdated={refreshSessions}
                 />
               </div>
             ))}

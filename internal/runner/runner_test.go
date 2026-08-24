@@ -68,7 +68,7 @@ func collect(t *testing.T, ch <-chan StreamEvent, wantTypes []string) []StreamEv
 func TestSendHappyPath(t *testing.T) {
 	r, st := newTestRunner(t, nil)
 
-	ss, _ := st.CreateSession("claude", "")
+	ss, _ := st.CreateSession("claude", "", "")
 	ch, unsub := r.Subscribe(ss.ID)
 	defer unsub()
 
@@ -126,7 +126,7 @@ func TestQueueFullAndDrain(t *testing.T) {
 	// fallback tier, one-shot held busy by FAKE_SLEEP
 	r, st := newTestRunner(t, map[string]string{"FAKE_SLEEP": "2"})
 
-	ss, _ := st.CreateSession("claude", "")
+	ss, _ := st.CreateSession("claude", "", "")
 	if _, err := r.Send(ss.ID, "first"); err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +177,7 @@ func TestQueueFullAndDrain(t *testing.T) {
 func TestStopPersistsPartial(t *testing.T) {
 	r, st := newTestRunner(t, map[string]string{"FAKE_SLEEP": "30"})
 
-	ss, _ := st.CreateSession("claude", "")
+	ss, _ := st.CreateSession("claude", "", "")
 	ch, unsub := r.Subscribe(ss.ID)
 	defer unsub()
 

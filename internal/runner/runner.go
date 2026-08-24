@@ -74,7 +74,7 @@ type Runner struct {
 	live    map[string]*liveProc          // persistent tier-1 processes (ADR-0004)
 	state   map[string]SessionStatus
 	pending map[string][]StreamEvent // unanswered permission requests, in order
-	queues  map[string][]string    // messages waiting for the current turn
+	queues  map[string][]string      // messages waiting for the current turn
 	subs    map[string]map[chan StreamEvent]struct{}
 }
 
@@ -226,8 +226,7 @@ func (r *Runner) deliver(sid string, ss *store.Session, adapter agent.Adapter, t
 	r.running[sid] = cancel
 	r.mu.Unlock()
 
-	cwd := filepath.Join(r.Workspaces, sid)
-	os.MkdirAll(cwd, 0o755)
+	cwd := r.sessionDir(sid, ss.Cwd)
 	hasHistory := r.Store.HasAssistantReply(sid)
 	argv := adapter.Build(text, ss.AgentRef, cwd, hasHistory)
 
@@ -392,6 +391,17 @@ func (r *Runner) finish(sid, content string, tools []map[string]any, errMsg stri
 	r.setStatus(sid, StatusIdle)
 	// any queued message? deliver the next turn now (G3)
 	r.drain(sid)
+}
+
+// sessionDir resolves the working directory for a session: the user-
+// chosen cwd when set, else the isolated scratch workspace.
+func (r *Runner) sessionDir(sid, cwd string) string {
+	if cwd != "" {
+		return cwd // user-picked: exists (validated at create)
+	}
+	p := filepath.Join(r.Workspaces, sid)
+	os.MkdirAll(p, 0o755)
+	return p
 }
 
 func (r *Runner) sessionAgent(sid string) string {

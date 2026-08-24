@@ -99,6 +99,9 @@ the SQLite schema — it stays until parity is proven in the field.
 
 ## Next steps (Phase 2 — in progress)
 
+- [x] Per-session cwd (user-picked, scratch default) — done 2026-08-24
+
+
 - [x] **Runner v2 tier 1 (claude)** — live processes with in-process
       memory, permission Allow/Deny round-trip, crash restart-with-ref;
       E2E-proven through the binary (two turns, one process, "secret

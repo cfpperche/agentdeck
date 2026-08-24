@@ -7,6 +7,17 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Per-session working directory (cwd)**: the New-session config tab
+  gains a "working directory" section — free path input + server-side
+  directory browser (directories only, hidden filtered, navigate up/
+  into, "use this"). Sessions created with a cwd run the agent in it
+  (live process cwd verified via /proc); without one they keep the
+  isolated scratch workspace — the safe default (no surprise edits).
+  The chat header shows the cwd (basename, full path on hover).
+  `GET /api/fs/dirs` powers the browser; POST /sessions validates and
+  canonicalizes the path (must be an existing directory).
+- Tab titles now sync after each turn (auto-title propagates to open
+  tabs via onSessionUpdated → refreshSessions).
 - **"New session" is now a configuration TAB**: the sidebar button (and
   the mobile CTA) opens a "New session" tab with the session setup —
   runtime (agent) picker today, designed as the extension point for

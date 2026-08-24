@@ -7,6 +7,9 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/cfpperche/agentdeck/internal/agent"
@@ -26,6 +29,7 @@ func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /api/agents", s.handleAgents)
+	mux.HandleFunc("GET /api/fs/dirs", s.handleListDirs)
 	mux.HandleFunc("GET /api/server-info", s.handleServerInfo)
 	mux.HandleFunc("GET /api/sessions", s.handleListSessions)
 	mux.HandleFunc("POST /api/sessions", s.handleCreateSession)
@@ -60,6 +64,47 @@ func readBody(r *http.Request, v any) error {
 
 // ---- handlers ----
 
+// handleListDirs lists DIRECTORIES ONLY under ?path= (default ~) —
+// powers the cwd picker. No files, sorted, capped; entries carry a
+// "traversable" hint (permission to read).
+func (s *Server) handleListDirs(w http.ResponseWriter, r *http.Request) {
+	root := r.URL.Query().Get("path")
+	if root == "" {
+		root, _ = os.UserHomeDir()
+	}
+	root = filepath.Clean(root)
+	st, err := os.Stat(root)
+	if err != nil || !st.IsDir() {
+		writeErr(w, 400, "not a directory: "+root)
+		return
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		writeErr(w, 400, "cannot read: "+root)
+		return
+	}
+	type dirEntry struct {
+		Name string `json:"name"`
+		Path string `json:"path"`
+	}
+	out := []dirEntry{}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if strings.HasPrefix(name, ".") && name != "." && name != ".." {
+			continue // hidden dirs are noise for picking a project root
+		}
+		out = append(out, dirEntry{Name: name, Path: filepath.Join(root, name)})
+		if len(out) >= 500 {
+			break
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
+	writeJSON(w, http.StatusOK, map[string]any{"path": root, "dirs": out})
+}
+
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 	out := make([]map[string]string, 0)
 	for _, a := range s.Registry.List() {
@@ -90,6 +135,7 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Agent string `json:"agent"`
 		Title string `json:"title"`
+		Cwd   string `json:"cwd"`
 	}
 	if err := readBody(r, &in); err != nil {
 		writeErr(w, 400, "invalid body")
@@ -99,7 +145,21 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "unknown agent: "+in.Agent)
 		return
 	}
-	ss, err := s.Store.CreateSession(in.Agent, in.Title)
+	// optional working directory: must exist and be a directory (realpath)
+	if in.Cwd != "" {
+		abs, err := filepath.Abs(in.Cwd)
+		if err != nil {
+			writeErr(w, 400, "invalid path")
+			return
+		}
+		st, err := os.Stat(abs)
+		if err != nil || !st.IsDir() {
+			writeErr(w, 400, "not a directory: "+in.Cwd)
+			return
+		}
+		in.Cwd = abs
+	}
+	ss, err := s.Store.CreateSession(in.Agent, in.Title, in.Cwd)
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return
