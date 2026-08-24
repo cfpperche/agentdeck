@@ -133,6 +133,8 @@ var adapterSpecs = []spec{
 	{"opencode", func(p string) Adapter {
 		return Adapter{
 			ID: "opencode", Label: "OpenCode", Color: "#E5C558",
+			BuildLive: buildOpenCodeLive(selfExe(), p),
+			ParseLive: parseClaude, // ACP bridge emits the claude dialect
 			Build: func(text, ref, cwd string, hasHistory bool) []string {
 				argv := []string{p, "run", "--format", "json", "--dir", cwd}
 				if ref != "" {

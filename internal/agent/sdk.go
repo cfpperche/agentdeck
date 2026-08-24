@@ -73,3 +73,22 @@ func claudeLiveCLI(p string) func(ref, cwd string) []string {
 		return argv
 	}
 }
+
+func selfExe() string {
+	e, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	return e
+}
+
+// buildOpenCodeLive (ADR-0007): opencode ships a native ACP server
+// (`opencode acp`). We drive it through our embedded bridge
+// (re-exec of this binary), which translates to the ADR-0004 wire.
+func buildOpenCodeLive(exe, cliPath string) func(ref, cwd string) []string {
+	return func(ref, cwd string) []string {
+		// absolute CLI path: the service runs under a clean systemd PATH
+		// (HANDOFF war story) — never rely on lookup inside the bridge
+		return []string{exe, "__acp", cliPath, "acp"}
+	}
+}

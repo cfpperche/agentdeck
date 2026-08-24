@@ -74,6 +74,10 @@ func (r *Runner) ensureLive(sid string, adapter agent.Adapter) (*liveProc, error
 	if ss.AgentRef != "" && argv[0] == "node" {
 		cmd.Env = append(cmd.Env, "AGENTDECK_SDK_RESUME="+ss.AgentRef)
 	}
+	// ACP bridge (ADR-0007): native session ref for loadSession
+	if ss.AgentRef != "" {
+		cmd.Env = append(cmd.Env, "AGENTDECK_AGENT_REF="+ss.AgentRef)
+	}
 	if pm := os.Getenv("AGENTDECK_SDK_PERMISSION_MODE"); pm != "" {
 		cmd.Env = append(cmd.Env, "AGENTDECK_SDK_PERMISSION_MODE="+pm)
 	}
@@ -122,6 +126,7 @@ func (r *Runner) pumpLive(sid string, adapter agent.Adapter, lp *liveProc, pr *o
 	var textAcc []string
 	var tools []map[string]any
 	var final string
+	var errMsg string
 
 	sc := bufio.NewScanner(pr)
 	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
@@ -133,7 +138,11 @@ func (r *Runner) pumpLive(sid string, adapter agent.Adapter, lp *liveProc, pr *o
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		for _, ev := range adapter.Parse(line) {
+		parse := adapter.Parse
+		if adapter.ParseLive != nil {
+			parse = adapter.ParseLive // bridge dialect (ADR-0007)
+		}
+		for _, ev := range parse(line) {
 			switch ev.Kind {
 			case agent.KindRef:
 				r.Store.SetAgentRef(sid, ev.Ref)
@@ -165,13 +174,17 @@ func (r *Runner) pumpLive(sid string, adapter agent.Adapter, lp *liveProc, pr *o
 			case agent.KindFinal:
 				final = ev.Content
 			case agent.KindError:
-				textAcc = append(textAcc, ev.Content)
+				// a result-level failure ends the turn (upstream provider
+				// errors arrive as result subtype:error via bridges)
+				errMsg = ev.Content
+				final = ev.Content
 			}
 		}
 		if final != "" {
 			// turn complete → persist + close (chat message per turn)
-			r.finish(sid, final, tools, "", nil)
+			r.finish(sid, final, tools, errMsg, nil)
 			final = ""
+			errMsg = ""
 			textAcc = nil
 			tools = nil
 		}

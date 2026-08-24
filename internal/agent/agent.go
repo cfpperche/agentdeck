@@ -97,6 +97,10 @@ type Adapter struct {
 	// into a fallback-tier argv. Convention: the positional prompt is
 	// argv's last element unless the implementation says otherwise.
 	ApplyControls func(argv []string, c *Controls) []string
+	// ParseLive overrides Parse for the live tier (ADR-0007): protocol
+	// bridges emit the claude wire dialect regardless of the agent's
+	// own CLI format, so their streams must be read with parseClaude.
+	ParseLive func(line string) []Event
 }
 
 // Registry holds discovered agents, preserving stable order.

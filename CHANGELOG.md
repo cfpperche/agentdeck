@@ -9,6 +9,15 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [0.10.0] - 2026-08-24
 
 ### Added
+- **ACP driver (ADR-0007, tier-2)**: generic Agent Client Protocol
+  client (`internal/acp`, NDJSON JSON-RPC over stdio) + bridge
+  subcommand (`agentdeck __acp <agent…>`) translating to the ADR-0004
+  wire — the runner needs zero protocol awareness. opencode now runs
+  as a persistent process: live model catalog straight from the agent
+  (82 options vs 1 curated), mid-session model switching via
+  session/set_config_option, streaming, and native resume through
+  ACP loadSession. Error results from providers now finish the turn
+  (previously left it running forever).
 - **Curated catalogs for all five runtimes** (benchmark parity —
   paseo/t3code keep static per-provider catalogs too): codex
   (GPT-5 Codex/GPT-5, reasoning effort, sandbox-mapped modes), grok

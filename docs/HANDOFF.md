@@ -126,3 +126,18 @@ the SQLite schema — it stays until parity is proven in the field.
   big-bang or incremental?
 - Whether `legacy/` removal happens at parity-in-the-field or at a
   fixed date.
+
+## War story #3 — the ACP bridge needed its reader running first (2026-08-24)
+Three separate footguns while building the opencode ACP driver:
+1. **Deadlock**: `Initialize` waits for a reply but `Conn.Next` (the
+   only reader) started after it — start the pump goroutine before any
+   call.
+2. **Empty result dropped**: bridges must send non-empty final text;
+   parseClaude gates KindFinal on `result != ""` so `"result":""`
+   silently swallowed whole turns.
+3. **Parser mismatch**: live-tier streams are parsed with the agent's
+   own parser; protocol bridges speak the claude dialect, hence the
+   `Adapter.ParseLive` override.
+Also: provider errors (result subtype:error) previously never finished
+a turn — status stuck 'running' forever. And systemd PATH strikes
+again: pass absolute CLI paths into bridges, never rely on lookup.

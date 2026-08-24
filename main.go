@@ -13,12 +13,14 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/cfpperche/agentdeck/internal/acp"
 	"github.com/cfpperche/agentdeck/internal/agent"
 	"github.com/cfpperche/agentdeck/internal/config"
 	"github.com/cfpperche/agentdeck/internal/runner"
@@ -38,10 +40,41 @@ type serveState struct {
 
 func main() {
 	// fast paths before any store/registry work
-	for _, a := range os.Args[1:] {
+	for i, a := range os.Args[1:] {
 		if a == "--version" || a == "-v" {
 			fmt.Println(Version)
 			return
+		}
+		if a == "__acp" {
+			// ADR-0007 bridge: agent command follows; speaks our wire on
+			// stdio, ACP to the child.
+			args := os.Args[i+2:]
+			if len(args) == 0 {
+				log.Fatal("__acp needs an agent command")
+			}
+			cmd := exec.Command(args[0], args[1:]...)
+			// systemd user units run with a minimal PATH; agents shell out
+			// to user-local tools (HANDOFF war story) — widen it.
+			if home, herr := os.UserHomeDir(); herr == nil {
+				for _, dir := range []string{".bun/bin", ".local/bin", ".pi/agent/bin"} {
+					cmd.Env = append(cmd.Env, "PATH="+os.Getenv("PATH")+":"+filepath.Join(home, dir))
+				}
+			}
+			stdin, _ := cmd.StdinPipe()
+			stdout, _ := cmd.StdoutPipe()
+			cmd.Stderr = os.Stderr
+			if err := cmd.Start(); err != nil {
+				log.Fatalf("acp spawn: %v", err)
+			}
+			bridge := acp.NewBridge(acp.NewConn(stdout, stdin))
+			code := 0
+			if err := bridge.Run(); err != nil {
+				log.Printf("acp bridge: %v", err)
+				code = 1
+			}
+			stdin.Close()
+			cmd.Wait()
+			os.Exit(code)
 		}
 	}
 
