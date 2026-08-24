@@ -245,7 +245,7 @@ func DefaultCaps(agentID string) *Capabilities {
 	case "grok":
 		think := []SelectOption{
 			{ID: "low", Label: "Low"}, {ID: "medium", Label: "Medium"},
-			{ID: "high", Label: "High"}, {ID: "xhigh", Label: "Extra high"},
+			{ID: "high", Label: "High", IsDefault: true}, {ID: "xhigh", Label: "Extra high"},
 		}
 		return &Capabilities{
 			Models: []ModelDef{

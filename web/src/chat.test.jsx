@@ -71,6 +71,9 @@ describe("Chat", () => {
       { id: "opus", label: "Opus" },
     ], modes: [{ id: "manual", label: "Ask before edits" }, { id: "acceptEdits", label: "Auto-accept" }] });
 
+    // thinking is a labeled strip selector, not buried in the model menu
+    expect(await screen.findByText("Thinking")).toBeInTheDocument();
+    expect(screen.getByTitle("thinking")).toHaveTextContent("Standard");
     // model chip shows default; open picker and choose Opus
     await user.click(await screen.findByText("Sonnet"));
     await user.click(screen.getByText("Opus"));

@@ -32,6 +32,10 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 - **Devices** (`/devices`): host vs other browsers (15s ping, 45s online).
 
 ### Fixed
+- **Thinking buried in the model menu**: Grok (and any runtime with
+  named models + thinking_options) hid Low/Medium/High/Extra high
+  inside the model dropdown. Thinking is now a first-class strip
+  control with a "Thinking" label in front of its own selector.
 - **/devices and /settings trapped the view**: selecting a tab, home or
   a sidebar session no longer leaves those overlay pages stuck over the
   agent view; both panels gained an explicit back button (reachable

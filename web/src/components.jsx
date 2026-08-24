@@ -274,7 +274,7 @@ export function Message({ m }) {
 export function Composer({ running, onSend, onStop, disabled, sessionId, agentId, caps }) {
   const [text, setText] = useState("");
   const ref = useRef(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState(null); // 'model' | 'think' | null
 
   // composer controls (ADR-0006): model/thinking/mode selected per agent,
   // persisted so the next session starts where you left off.
@@ -291,7 +291,7 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
     const m = caps.models?.find((x) => x.id === model);
     const think = m?.thinking_options?.some((t) => t.id === saved.thinking)
       ? saved.thinking
-      : m?.default_thinking_option_id || m?.thinking_options?.find((t) => t.is_default)?.id || null;
+      : m?.default_thinking_option_id || m?.thinking_options?.find((t) => t.is_default)?.id || m?.thinking_options?.[0]?.id || null;
     const mode = caps.modes?.some((x) => x.id === saved.mode)
       ? saved.mode
       : caps.modes?.find((x) => x.id === "manual")?.id || caps.modes?.[0]?.id || null;
@@ -377,34 +377,12 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
           {/* control strip INSIDE the box: chips left, send right */}
           <div class="flex items-center justify-between gap-2 pl-2 pr-2 pb-2 pt-0.5">
             <div class="flex items-center gap-1.5 min-w-0">
-              {/* runtime whose only model is "default" (no id): thinking
-                  variants render directly on the strip */}
-              {(caps?.models || []).some((m) => !m.id && m.thinking_options?.length) && (() => {
-                const m = caps.models.find((x) => !x.id);
-                return (
-                  <div class="flex items-center gap-1">
-                    <span class="text-[11px] font-medium" style={{ color: "var(--text-3)" }}>thinking</span>
-                    {m.thinking_options.map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() => updCtrl({ thinking: t.id })}
-                        class="px-2 py-1 rounded-md text-[11px] transition-colors"
-                        style={{
-                          background: ctrl.thinking === t.id ? "var(--accent-bg, var(--bg-hover))" : "transparent",
-                          border: `1px solid ${ctrl.thinking === t.id ? "var(--accent)" : "var(--border)"}`,
-                          color: ctrl.thinking === t.id ? "var(--accent-fg)" : "var(--text-3)",
-                        }}
-                      >{t.label}</button>
-                    ))}
-                  </div>
-                );
-              })()}
               {caps?.models?.filter((m) => m.id).length > 0 && ctrl.model && (() => {
                 const m = caps.models.find((x) => x.id === ctrl.model);
                 return (
                   <div class="relative">
                     <button
-                      onClick={() => setPickerOpen((o) => !o)}
+                      onClick={() => setOpenMenu((o) => o === "model" ? null : "model")}
                       class="flex items-center gap-1.5 h-7 pl-2 pr-1.5 rounded-lg text-[12px] font-medium transition-colors hover:opacity-80"
                       style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-2)" }}
                       title="model"
@@ -412,43 +390,65 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
                       {m?.label || ctrl.model}
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
                     </button>
-                    {pickerOpen && (
+                    {openMenu === "model" && (
                       <>
-                        {/* click-away catcher */}
-                        <div class="fixed inset-0 z-40" onClick={() => setPickerOpen(false)} />
+                        <div class="fixed inset-0 z-40" onClick={() => setOpenMenu(null)} />
                         <div
                           class="absolute bottom-9 left-0 z-50 w-64 rounded-xl p-1.5 shadow-xl"
                           style={{ background: "var(--bg-card)", border: "1px solid var(--border-strong)" }}
                         >
-                          {caps.models.map((mo) => (
-                            <div key={mo.id}>
-                              <button
-                                onClick={() => { updCtrl({ model: mo.id }); setPickerOpen(false); }}
-                                class="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-[13px] transition-colors text-left hover:bg-[color:var(--bg-hover)]"
-                                style={{
-                                  color: mo.id === ctrl.model ? "var(--text-1)" : "var(--text-2)",
-                                }}
-                              >
-                                <span>{mo.label}</span>
-                                {mo.is_default && <span class="text-[10px] uppercase tracking-wide" style={{ color: "var(--text-3)" }}>default</span>}
-                              </button>
-                              {mo.id === ctrl.model && mo.thinking_options?.length > 0 && (
-                                <div class="flex gap-1 px-2 pb-2">
-                                  {mo.thinking_options.map((t) => (
-                                    <button
-                                      key={t.id}
-                                      onClick={() => updCtrl({ thinking: t.id })}
-                                      class="px-2 py-1 rounded-md text-[11px] transition-colors"
-                                      style={{
-                                        background: ctrl.thinking === t.id ? "var(--accent-bg, var(--bg-hover))" : "transparent",
-                                        border: `1px solid ${ctrl.thinking === t.id ? "var(--accent)" : "var(--border)"}`,
-                                        color: ctrl.thinking === t.id ? "var(--accent-fg)" : "var(--text-3)",
-                                      }}
-                                    >{t.label}</button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+                          {caps.models.filter((mo) => mo.id).map((mo) => (
+                            <button
+                              key={mo.id}
+                              onClick={() => { updCtrl({ model: mo.id }); setOpenMenu(null); }}
+                              class="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-[13px] transition-colors text-left hover:bg-[color:var(--bg-hover)]"
+                              style={{ color: mo.id === ctrl.model ? "var(--text-1)" : "var(--text-2)" }}
+                            >
+                              <span>{mo.label}</span>
+                              {mo.is_default && <span class="text-[10px] uppercase tracking-wide" style={{ color: "var(--text-3)" }}>default</span>}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+              {(() => {
+                // thinking is a first-class strip control (not buried in the
+                // model menu) — label in front of a compact selector
+                const m = caps?.models?.find((x) => x.id === ctrl.model)
+                  || caps?.models?.find((x) => !x.id && x.thinking_options?.length)
+                  || null;
+                const opts = m?.thinking_options || [];
+                if (!opts.length) return null;
+                const cur = opts.find((t) => t.id === ctrl.thinking) || opts.find((t) => t.is_default) || opts[0];
+                return (
+                  <div class="relative flex items-center gap-1.5">
+                    <span class="text-[11px] font-medium shrink-0" style={{ color: "var(--text-3)" }}>Thinking</span>
+                    <button
+                      onClick={() => setOpenMenu((o) => o === "think" ? null : "think")}
+                      class="flex items-center gap-1.5 h-7 pl-2 pr-1.5 rounded-lg text-[12px] font-medium transition-colors hover:opacity-80"
+                      style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-2)" }}
+                      title="thinking"
+                    >
+                      {cur?.label || "off"}
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    {openMenu === "think" && (
+                      <>
+                        <div class="fixed inset-0 z-40" onClick={() => setOpenMenu(null)} />
+                        <div
+                          class="absolute bottom-9 left-0 z-50 min-w-[140px] rounded-xl p-1.5 shadow-xl"
+                          style={{ background: "var(--bg-card)", border: "1px solid var(--border-strong)" }}
+                        >
+                          {opts.map((t) => (
+                            <button
+                              key={t.id}
+                              onClick={() => { updCtrl({ thinking: t.id }); setOpenMenu(null); }}
+                              class="w-full flex items-center px-2.5 py-1.5 rounded-lg text-[13px] transition-colors text-left hover:bg-[color:var(--bg-hover)]"
+                              style={{ color: t.id === ctrl.thinking ? "var(--text-1)" : "var(--text-2)" }}
+                            >{t.label}</button>
                           ))}
                         </div>
                       </>
