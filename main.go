@@ -37,6 +37,14 @@ type serveState struct {
 }
 
 func main() {
+	// fast paths before any store/registry work
+	for _, a := range os.Args[1:] {
+		if a == "--version" || a == "-v" {
+			fmt.Println(Version)
+			return
+		}
+	}
+
 	cfg := config.FromEnv()
 
 	st, err := store.Open(cfg.DataDir)

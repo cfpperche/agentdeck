@@ -58,8 +58,15 @@ Adding an agent is an adapter: one command builder + one event parser
 > binary). The Python prototype stays in `legacy/` until parity is proven
 > in the field — see [Roadmap](#roadmap).
 
-Prerequisites: one or more agent CLIs installed and authenticated, Go 1.22+
-and Node 22+ to build from source.
+**One-liner** (downloads a release binary into `~/.local/bin`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/cfpperche/agentdeck/main/scripts/install.sh | bash
+# add --systemd to install and start the systemd user unit as well
+```
+
+**From source** — prerequisites: one or more agent CLIs installed and
+authenticated, Go 1.22+ and Node 22+.
 
 ```bash
 git clone https://github.com/cfpperche/agentdeck

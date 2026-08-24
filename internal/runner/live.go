@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/cfpperche/agentdeck/internal/agent"
@@ -79,10 +78,10 @@ func (r *Runner) ensureLive(sid string, adapter agent.Adapter) (*liveProc, error
 		cmd.Env = append(cmd.Env, "AGENTDECK_SDK_PERMISSION_MODE="+pm)
 	}
 	// process group (war story #1 in HANDOFF): kill children too
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	setProcAttr(cmd)
 	cmd.Cancel = func() error {
 		if cmd.Process != nil {
-			return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			return killGroup(cmd.Process.Pid)
 		}
 		return os.ErrProcessDone
 	}

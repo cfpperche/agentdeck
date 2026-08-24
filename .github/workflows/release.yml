@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Cross-compile, checksum, release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build web UI
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Cross-compile (embed includes the fresh UI)
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          mkdir -p dist
+          LDFLAGS="-s -w -X main.Version=${VERSION#v}"
+          while read -r GOOS GOARCH EXT; do
+            GOOS="$GOOS" GOARCH="$GOARCH" \
+              go build -trimpath -ldflags "$LDFLAGS" \
+              -o "dist/agentdeck-${GOOS}-${GOARCH}${EXT}" .
+          done <<'TARGETS'
+linux amd64
+linux arm64
+darwin amd64
+darwin arm64
+windows amd64 .exe
+TARGETS
+          cd dist && sha256sum * > SHA256SUMS
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          awk -v tag="$VER" '
+            index($0, "## [" tag "]") == 1 { found = 1; next }
+            /^## \[/ && found { exit }
+            found { print }
+          ' CHANGELOG.md > /tmp/notes.md
+          if [ ! -s /tmp/notes.md ]; then
+            echo "_No changelog entry for $GITHUB_REF_NAME — see [CHANGELOG.md](https://github.com/cfpperche/agentdeck/blob/main/CHANGELOG.md)._" > /tmp/notes.md
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file /tmp/notes.md

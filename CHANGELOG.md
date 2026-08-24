@@ -7,6 +7,13 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Releases + installer**: tag-push workflow cross-compiles
+  linux/darwin/windows (amd64+arm64) with embedded UI and publishes
+  SHA256SUMS + CHANGELOG-derived notes; `scripts/install.sh` one-liner
+  (platform detect, checksum verify, `~/.local/bin`, optional
+  `--systemd`). Windows now builds: process-group kill split into
+  per-platform helpers (`procs_unix.go` / `procs_windows.go`);
+  `--version` flag added.
 - ADR-0006: chat is the conversation surface; a terminal panel (when
   built) must be closed by default, toggled from the toolbar, and own
   a real header with a functional close control.
