@@ -470,7 +470,7 @@ export function UserMenu({ theme, onToggleTheme, onOpenSettings }) {
     <div ref={ref} class="relative shrink-0" style={{ borderTop: "1px solid var(--border-soft)" }}>
       <button
         onClick={() => setOpen((o) => !o)}
-        class="w-full flex items-center gap-2.5 px-3 h-12 surface hover:bg-[color:var(--bg-hover)]"
+        class="w-full flex items-center gap-2.5 px-3 h-12 mb-1 surface hover:bg-[color:var(--bg-hover)]"
         aria-haspopup="menu"
         aria-expanded={open}
       >
@@ -487,7 +487,7 @@ export function UserMenu({ theme, onToggleTheme, onOpenSettings }) {
 
       {open && (
         <div role="menu"
-          class="absolute bottom-[calc(100%+4px)] left-2 right-2 rounded-xl overflow-hidden z-50"
+          class="absolute bottom-[calc(100%+8px)] left-2 right-2 rounded-xl overflow-hidden z-50"
           style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "var(--shadow)" }}>
           <button role="menuitem" class={item} style={{ color: "var(--text-2)" }} onClick={() => { setOpen(false); onOpenSettings(); }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.09a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.09a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.09a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z"/></svg>
@@ -501,7 +501,7 @@ export function UserMenu({ theme, onToggleTheme, onOpenSettings }) {
             )}
             {theme === "dark" ? "Light mode" : "Dark mode"}
           </button>
-          <div style={{ borderTop: "1px solid var(--border-soft)" }}>
+          <div style={{ borderTop: "1px solid var(--border)" }} class="bg-[color:var(--bg-panel)]">
             <div class="flex items-center gap-2 px-3 py-2">
               <span class="h-1.5 w-1.5 rounded-full" style={{ background: "var(--ok)" }} />
               <span class="text-[11px]" style={{ color: "var(--text-3)" }}>
