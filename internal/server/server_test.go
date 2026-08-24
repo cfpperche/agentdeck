@@ -69,6 +69,27 @@ func TestShareAndDevices(t *testing.T) {
 	}
 }
 
+func TestSessionStatus(t *testing.T) {
+	ts := newTestServer(t)
+	resp, _ := http.Post(ts.URL+"/api/sessions", "application/json",
+		strings.NewReader(`{"agent":"claude"}`))
+	var ss map[string]any
+	json.NewDecoder(resp.Body).Decode(&ss)
+	id, _ := ss["id"].(string)
+	if id == "" {
+		t.Fatal("no session")
+	}
+	resp, err := http.Get(ts.URL + "/api/sessions/" + id + "/status")
+	if err != nil || resp.StatusCode != 200 {
+		t.Fatalf("status: %v %v", err, resp)
+	}
+	var bar map[string]any
+	json.NewDecoder(resp.Body).Decode(&bar)
+	if bar["cwd"] == nil || bar["cwd"] == "" {
+		t.Fatalf("cwd missing: %v", bar)
+	}
+}
+
 func TestSystemReport(t *testing.T) {
 	ts := newTestServer(t)
 	resp, err := http.Get(ts.URL + "/api/system")

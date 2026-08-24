@@ -72,6 +72,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/sessions/{id}/queue/cancel", s.handleQueueCancel)
 	mux.HandleFunc("POST /api/sessions/{id}/stop", s.handleStop)
 	mux.HandleFunc("GET /api/sessions/{id}/events", s.handleEvents)
+	mux.HandleFunc("GET /api/sessions/{id}/status", s.handleSessionStatus)
 	mux.HandleFunc("GET /api/sessions/{id}/terminal", s.handleTermGet)
 	mux.HandleFunc("POST /api/sessions/{id}/terminal", s.handleTermOpen)
 	mux.HandleFunc("DELETE /api/sessions/{id}/terminal", s.handleTermClose)

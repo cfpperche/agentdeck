@@ -7,6 +7,11 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Composer statusline (pi first)**: cwd, git branch/dirty, context
+  meter, tokens in/out, cache hit and cost — PiCode's Bar, fed by
+  `GET /api/sessions/{id}/status`. Pi usage is scanned from the latest
+  `~/.pi/agent/sessions/<cwd>/*.jsonl`. Other runtimes get cwd+git now;
+  their usage scanners come next.
 - **/system route** (PiCode-shaped): Host, Network, Dependencies
   (tmux, mkcert, tailscale, installed agents) and About. Settings
   keeps only Appearance + Server port — version/mode/about moved out.

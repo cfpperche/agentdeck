@@ -32,11 +32,13 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
   const [dockOpen, setDockOpen] = useState(false);
   const [termMax, setTermMax] = useState(false);
   const [tmuxName, setTmuxName] = useState("");
+  const [statusBar, setStatusBar] = useState(null);
 
   useEffect(() => {
     setMessages(null);
     setCaps(null);
     api.messages(sid).then(setMessages).catch(() => setMessages([]));
+    api.status(sid).then(setStatusBar).catch(() => setStatusBar(null));
     esRef.current?.close();
     const es = openEvents(sid, (ev) => {
       if (ev.type === "state") {
@@ -54,6 +56,7 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
         setCaps({ models: ev.models || [], modes: ev.modes || [] });
       } else if (ev.type === "message_end") {
         api.messages(sid).then(setMessages).catch(() => {});
+        api.status(sid).then(setStatusBar).catch(() => {});
         setStream(null);
         setQueuedCount((q) => Math.max(0, q - 1));
         onSessionUpdated?.(); // auto-title may have changed the session
@@ -61,6 +64,13 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
     });
     esRef.current = es;
     return () => es.close();
+  }, [sid]);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      api.status(sid).then(setStatusBar).catch(() => {});
+    }, 15000);
+    return () => clearInterval(t);
   }, [sid]);
 
   useEffect(() => {
@@ -263,6 +273,7 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
         sessionId={sid}
         agentId={session.agent}
         caps={caps}
+        statusBar={statusBar}
         termOpen={dockOpen}
         onToggleTerm={async () => {
           if (dockOpen) { setDockOpen(false); setTermMax(false); return; }

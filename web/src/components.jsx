@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Markdown } from "./markdown.jsx";
 import { AgentIcon } from "./icons.jsx";
+import { ComposerStatus } from "./composerstatus.jsx";
 
 /* ------------------------------------------------------------------ logo */
 export function Logo({ size = 20 }) {
@@ -271,7 +272,7 @@ export function Message({ m }) {
   );
 }
 
-export function Composer({ running, onSend, onStop, disabled, sessionId, agentId, caps, termOpen, onToggleTerm }) {
+export function Composer({ running, onSend, onStop, disabled, sessionId, agentId, caps, termOpen, onToggleTerm, statusBar }) {
   const [text, setText] = useState("");
   const ref = useRef(null);
   const [openMenu, setOpenMenu] = useState(null); // 'model' | 'think' | null
@@ -504,6 +505,7 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
               )}
             </div>
           </div>
+          <ComposerStatus bar={statusBar} />
         </div>
       </div>
       <p class="sr-only">Enter envia, Shift+Enter quebra linha</p>

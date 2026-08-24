@@ -157,6 +157,13 @@ func (r *Runner) broadcast(sid string, ev StreamEvent) {
 // Caps returns the composer surface for a session: the dynamically
 // reported one when available, else the per-agent defaults so the UI
 // can render controls before the first spawn.
+// LastControls is the composer selection last sent for this session.
+func (r *Runner) LastControls(sid string) *agent.Controls {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.ctrls[sid]
+}
+
 func (r *Runner) Caps(sid string) *agent.Capabilities {
 	r.mu.Lock()
 	c := r.caps[sid]

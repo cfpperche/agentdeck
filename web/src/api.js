@@ -41,6 +41,7 @@ export const api = {
     fetch(`/api/sessions/${id}/terminal`, { method: "POST" }).then(json),
   closeTerminal: (id) =>
     fetch(`/api/sessions/${id}/terminal`, { method: "DELETE" }).then(json),
+  status: (id) => fetch(`/api/sessions/${id}/status`).then(json),
 };
 
 export function openEvents(sid, onEvent) {
