@@ -24,6 +24,19 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
   splash). Cert SANs refresh via mkcert + TLS reload — no rebuild.
 - **Devices** (`/devices`): host vs other browsers (15s ping, 45s online).
 
+### Fixed
+- **/devices and /settings trapped the view**: selecting a tab, home or
+  a sidebar session no longer leaves those overlay pages stuck over the
+  agent view; both panels gained an explicit back button (reachable
+  even with zero tabs open).
+- **overlay routes stuck in the address bar**: back on Devices/Settings
+  used `pushState` with the URL in the unused title slot, and tab
+  navigation reused `location.pathname`, so `/devices` and `/settings`
+  never left the bar (and a refresh reopened the overlay). Chat now
+  always lives at `/`; overlays push `/devices|/settings` (keeping the
+  tab query) and back *replaces* them with the chat URL. Opening an
+  overlay no longer clears the active tab.
+
 ## [0.10.0] - 2026-08-24
 
 ### Added
@@ -237,10 +250,6 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
   (see `AGENTS.md`).
 
 ### Fixed
-- **/devices and /settings trapped the view**: selecting a tab, home or
-  a sidebar session no longer leaves those overlay pages stuck over the
-  agent view; both panels gained an explicit back button (reachable
-  even with zero tabs open).
 - Ghost toolbar band: the (now state-only) chat toolbar rendered even
   when empty on desktop — a ~59px gray strip under the tab bar, taller
   than the tab bar itself (user report). It now renders only when it

@@ -8,6 +8,7 @@ import { useTheme } from "./theme.js";
 import { NewSessionPanel } from "./newsession.jsx";
 import { ShareDrawer } from "./share.jsx";
 import { DevicesPanel } from "./devices.jsx";
+import { parseAppURL, chatPath, overlayPath } from "./url.js";
 
 const NEW_TAB_ID = "__new__";
 
@@ -22,6 +23,12 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [devicesOpen, setDevicesOpen] = useState(false);
   const closeOverlays = () => { setSettingsOpen(false); setDevicesOpen(false); };
+  const tabIds = () => openTabs.map((t) => t.id);
+  const leaveOverlay = () => {
+    closeOverlays();
+    // replace, don't push: the overlay URL must disappear from the bar
+    history.replaceState({}, "", chatPath(tabIds(), activeId));
+  };
   const [shareOpen, setShareOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -39,31 +46,18 @@ export function App() {
     api.sessions().then(setSessions).catch(() => {});
   }, []);
 
-  // ---- URL: ?tab=<active>&tabs=<a,b,c> (home = no tab) ----
-  const parseURL = () => {
-    const p = new URLSearchParams(location.search);
-    const tabs = (p.get("tabs") || "").split(",").filter(Boolean);
-    const tab = p.get("tab");
-    if (p.get("s")) return { legacy: p.get("s") }; // pre-tabs deep-link
-    // /s/<id> path deep-link (shared links, history entries)
-    const m = location.pathname.match(/^\/s\/([A-Za-z0-9_-]+)\/?$/);
-    if (m) return { legacy: m[1] };
-    return { tabs, tab: tabs.includes(tab) ? tab : tabs[0] || null };
-  };
-
   useEffect(() => {
     api.agents().then(setAgents).catch(() => {});
     refreshSessions();
-    const { tabs, tab, legacy } = parseURL();
+    const { tabs, tab, overlay, legacy } = parseAppURL();
     if (legacy) {
-      // normalize legacy /s/<id> deep-links into the tab model
-      history.replaceState({}, "", `/?tabs=${legacy}&tab=${legacy}`);
+      history.replaceState({}, "", chatPath([legacy], legacy));
       setOpenTabsAndActive([legacy], legacy, false);
     } else if (tabs.length) {
       setOpenTabsAndActive(tabs, tab, false);
     }
-    if (location.pathname.startsWith("/settings")) setSettingsOpen(true);
-    if (location.pathname.startsWith("/devices")) setDevicesOpen(true);
+    if (overlay === "settings") setSettingsOpen(true);
+    if (overlay === "devices") setDevicesOpen(true);
   }, []);
 
   useEffect(() => {
@@ -90,9 +84,9 @@ export function App() {
 
   useEffect(() => {
     const onPop = () => {
-      setSettingsOpen(location.pathname.startsWith("/settings"));
-      setDevicesOpen(location.pathname.startsWith("/devices"));
-      const { tabs, tab } = parseURL();
+      const { tabs, tab, overlay } = parseAppURL();
+      setSettingsOpen(overlay === "settings");
+      setDevicesOpen(overlay === "devices");
       setOpenTabs((prev) => {
         // keep session objects we already have; fetch titles later
         const byId = Object.fromEntries(prev.map((t) => [t.id, t]));
@@ -122,12 +116,8 @@ export function App() {
     setOpenTabs(tabs);
     setActiveId(active);
     if (push) {
-      const q = new URLSearchParams();
-      if (ids.length) {
-        q.set("tabs", ids.join(","));
-        if (active) q.set("tab", active);
-      }
-      history.pushState({}, "", `${location.pathname}?${q}`);
+      // always `/` — never keep /devices or /settings glued on
+      history.pushState({}, "", chatPath(ids, active));
     }
   };
 
@@ -188,8 +178,16 @@ export function App() {
         setOpen={setSidebarOpen}
         theme={theme.current}
         onToggleTheme={theme.toggle}
-        onOpenSettings={() => { closeOverlays(); setSettingsOpen(true); setActiveId(null); history.pushState({}, "", "/settings"); }}
-        onOpenDevices={() => { setSettingsOpen(false); setDevicesOpen(true); setActiveId(null); history.pushState({}, "", "/devices"); }}
+        onOpenSettings={() => {
+          setDevicesOpen(false);
+          setSettingsOpen(true);
+          history.pushState({}, "", overlayPath("settings", tabIds(), activeId));
+        }}
+        onOpenDevices={() => {
+          setSettingsOpen(false);
+          setDevicesOpen(true);
+          history.pushState({}, "", overlayPath("devices", tabIds(), activeId));
+        }}
       />
 
       <main class="flex-1 flex flex-col min-w-0" style={{ background: "var(--bg-canvas)" }}>
@@ -237,9 +235,9 @@ export function App() {
             class="flex items-center px-3 cursor-pointer text-[12.5px] shrink-0 surface"
             style={{
               borderRight: "1px solid var(--border-soft)",
-              background: activeId === null && !settingsOpen ? "var(--bg-canvas)" : "transparent",
-              color: activeId === null && !settingsOpen ? "var(--text-1)" : "var(--text-3)",
-              boxShadow: activeId === null && !settingsOpen ? "inset 0 2px 0 0 var(--accent)" : "none",
+              background: activeId === null && !settingsOpen && !devicesOpen ? "var(--bg-canvas)" : "transparent",
+              color: activeId === null && !settingsOpen && !devicesOpen ? "var(--text-1)" : "var(--text-3)",
+              boxShadow: activeId === null && !settingsOpen && !devicesOpen ? "inset 0 2px 0 0 var(--accent)" : "none",
             }}
             title="home"
           >
@@ -250,9 +248,9 @@ export function App() {
 
         {/* views: all tabs stay mounted; hidden ones keep their state */}
         {settingsOpen ? (
-          <SettingsPanel themePref={theme.pref} currentTheme={theme.current} onSetTheme={theme.setPref} onClose={() => { closeOverlays(); history.pushState({}, "/"); }} />
+          <SettingsPanel themePref={theme.pref} currentTheme={theme.current} onSetTheme={theme.setPref} onClose={leaveOverlay} />
         ) : devicesOpen ? (
-          <DevicesPanel onClose={() => { closeOverlays(); history.pushState({}, "/"); }} />
+          <DevicesPanel onClose={leaveOverlay} />
         ) : activeId === NEW_TAB_ID ? (
           <NewSessionPanel
             agents={agents}
