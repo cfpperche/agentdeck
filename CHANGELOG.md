@@ -7,6 +7,15 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **pi native driver (ADR-0007 tier-1)**: `internal/pibridge` drives
+  `pi --mode rpc` (protocol receipts: paseo providers/pi, verified
+  against the installed CLI). Live model catalog via
+  get_available_models (composer shows pi's real models, e.g.
+  anthropic/claude-fable-5), mid-session set_model +
+  set_thinking_level from composer controls, streaming text deltas,
+  tool events, and hardened turn completion (agent_end/agent_settled
+  dedup; empty provider responses finish as errored turns instead of
+  hanging).
 
 - **Open on phone**: QR in the sidebar. `GET /api/share` checks HTTPS,
   bind, reachable IP, cert SAN and mkcert. QR uses the selected LAN or

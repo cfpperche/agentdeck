@@ -63,9 +63,9 @@ var adapterSpecs = []spec{
 				if c.Mode != "" {
 					// named composer mode -> codex sandbox policy
 					sandbox := map[string]string{
-						"plan":             "read-only",
-						"manual":           "workspace-write",
-						"acceptEdits":      "workspace-write",
+						"plan":              "read-only",
+						"manual":            "workspace-write",
+						"acceptEdits":       "workspace-write",
 						"bypassPermissions": "danger-full-access",
 					}[c.Mode]
 					if sandbox != "" && sandbox != "workspace-write" {
@@ -110,6 +110,8 @@ var adapterSpecs = []spec{
 	{"pi", func(p string) Adapter {
 		return Adapter{
 			ID: "pi", Label: "Pi", Color: "#7DA2F7",
+			BuildLive: buildPiLive(selfExe(), p),
+			ParseLive: parseClaude, // bridge emits the claude dialect
 			Build: func(text, ref, cwd string, hasHistory bool) []string {
 				argv := []string{p, "-p", "--mode", "json"}
 				if ref != "" {

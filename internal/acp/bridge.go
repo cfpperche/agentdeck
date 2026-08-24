@@ -2,11 +2,11 @@ package acp
 
 import (
 	"bufio"
-	"strings"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -25,7 +25,7 @@ type Bridge struct {
 }
 
 type permEntry struct {
-	acpID    int64
+	acpID     int64
 	reqParams *PermissionRequest
 }
 
@@ -187,12 +187,12 @@ func (b *Bridge) handleAgentMessage(n *Next) error {
 
 func (b *Bridge) handleWireLine(line string) error {
 	var msg struct {
-		Type    string          `json:"type"`
-		Message json.RawMessage `json:"message"`
-		Request string          `json:"request_id"`
-		ID      int64           `json:"id"`
+		Type     string          `json:"type"`
+		Message  json.RawMessage `json:"message"`
+		Request  string          `json:"request_id"`
+		ID       int64           `json:"id"`
 		Response struct {
-			Behavior     string `json:"behavior"`
+			Behavior     string          `json:"behavior"`
 			UpdatedInput json.RawMessage `json:"updatedInput"`
 		} `json:"response"`
 		Controls struct {

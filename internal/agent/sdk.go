@@ -92,3 +92,11 @@ func buildOpenCodeLive(exe, cliPath string) func(ref, cwd string) []string {
 		return []string{exe, "__acp", cliPath, "acp"}
 	}
 }
+
+// buildPiLive (ADR-0007): pi speaks its own RPC protocol (--mode rpc,
+// receipts in paseo providers/pi). Driven through our embedded bridge.
+func buildPiLive(exe, cliPath string) func(ref, cwd string) []string {
+	return func(ref, cwd string) []string {
+		return []string{exe, "__pirpc", cliPath}
+	}
+}

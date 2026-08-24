@@ -4,11 +4,11 @@
 package acp
 
 import (
-	"fmt"
-	"os"
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io"
+	"os"
 	"sync"
 )
 

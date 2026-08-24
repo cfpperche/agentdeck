@@ -5,6 +5,7 @@
 package agent
 
 import (
+	"log"
 	"fmt"
 	"os"
 	"os/exec"
@@ -19,18 +20,18 @@ const (
 	KindTool    = "tool"  // tool call lifecycle
 	KindFinal   = "final" // authoritative final text (turn end)
 	KindError   = "error"
-	KindControl = "control" // agent asks the user (permission request)
+	KindControl = "control"      // agent asks the user (permission request)
 	KindCaps    = "capabilities" // composer surface reported at startup
 )
 
 // Event is the normalized stream unit. Kind discriminates the payload.
 type Event struct {
-	Kind    string `json:"type"`
-	Ref     string `json:"ref,omitempty"`
-	Content string `json:"content,omitempty"`
-	Name    string `json:"name,omitempty"`  // tool name
-	State   string `json:"state,omitempty"` // start | end
-	Detail  string `json:"detail,omitempty"`
+	Kind    string        `json:"type"`
+	Ref     string        `json:"ref,omitempty"`
+	Content string        `json:"content,omitempty"`
+	Name    string        `json:"name,omitempty"`  // tool name
+	State   string        `json:"state,omitempty"` // start | end
+	Detail  string        `json:"detail,omitempty"`
 	Caps    *Capabilities `json:"capabilities,omitempty"`
 }
 
@@ -144,7 +145,11 @@ func NewRegistry(which Which) *Registry {
 	}
 	for _, spec := range adapterSpecs {
 		if p, err := which(spec.bin); err == nil {
-			add(spec.build(p), p)
+			ad := spec.build(p)
+			if os.Getenv("AGENTDECK_DEBUG_REGISTRY") != "" {
+				log.Printf("[registry] %s: BuildLive=%v ParseLive=%v", ad.ID, ad.BuildLive != nil, ad.ParseLive != nil)
+			}
+			add(ad, p)
 		}
 	}
 	return r
@@ -197,7 +202,6 @@ func (r *Registry) List() []Adapter {
 	}
 	return out
 }
-
 
 // DefaultCaps returns the composer surface an agent offers even before
 // its process first spawns (the UI must show controls immediately).

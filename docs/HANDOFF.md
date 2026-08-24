@@ -141,3 +141,7 @@ Three separate footguns while building the opencode ACP driver:
 Also: provider errors (result subtype:error) previously never finished
 a turn — status stuck 'running' forever. And systemd PATH strikes
 again: pass absolute CLI paths into bridges, never rely on lookup.
+### pi rpc bridge notes (2026-08-24)
+- prompt's RPC response is only an ACK; completion = agent_end (older builds: agent_settled)
+- unauthenticated/flaky providers return EMPTY agent_end — the bridge converts that to a result:error so turns never hang
+- single reader rule again: replies route to per-id channels, events to one channel; never consume Events from two places

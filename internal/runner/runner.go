@@ -5,6 +5,7 @@
 package runner
 
 import (
+	"log"
 	"bufio"
 	"context"
 	"errors"
@@ -76,10 +77,10 @@ type Runner struct {
 	running map[string]context.CancelFunc // fallback cancels + live busy marker
 	live    map[string]*liveProc          // persistent tier-1 processes (ADR-0004)
 	state   map[string]SessionStatus
-	pending map[string][]StreamEvent // unanswered permission requests, in order
+	pending map[string][]StreamEvent       // unanswered permission requests, in order
 	caps    map[string]*agent.Capabilities // last reported composer surface
-	ctrls   map[string]*agent.Controls // last composer selection per session
-	queues  map[string][]string      // messages waiting for the current turn
+	ctrls   map[string]*agent.Controls     // last composer selection per session
+	queues  map[string][]string            // messages waiting for the current turn
 	subs    map[string]map[chan StreamEvent]struct{}
 }
 
@@ -237,6 +238,9 @@ func (r *Runner) Send(sid, text string, ctrls ...*agent.Controls) (bool, error) 
 // deliver starts a turn with a (already persisted) user message.
 func (r *Runner) deliver(sid string, ss *store.Session, adapter agent.Adapter, text string) error {
 	// tier-1 (ADR-0004): persistent bidirectional process — no spawn
+	if os.Getenv("AGENTDECK_DEBUG_REGISTRY") != "" {
+		log.Printf("[deliver] %s (%s): live=%v", sid, adapter.ID, adapter.BuildLive != nil)
+	}
 	if adapter.BuildLive != nil {
 		if err := r.sendLive(sid, adapter, text); err != nil {
 			return err

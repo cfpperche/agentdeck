@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/cfpperche/agentdeck/internal/acp"
+	pibridge "github.com/cfpperche/agentdeck/internal/pibridge"
 	"github.com/cfpperche/agentdeck/internal/agent"
 	"github.com/cfpperche/agentdeck/internal/config"
 	"github.com/cfpperche/agentdeck/internal/runner"
@@ -43,6 +44,34 @@ func main() {
 	for i, a := range os.Args[1:] {
 		if a == "--version" || a == "-v" {
 			fmt.Println(Version)
+			return
+		}
+		if a == "__pirpc" {
+			// ADR-0007 bridge (pi native): pi --mode rpc <-> our wire
+			args := os.Args[i+2:]
+			if len(args) == 0 {
+				log.Fatal("__pirpc needs the pi command")
+			}
+			cmd := exec.Command(args[0], append([]string{"--mode", "rpc"}, args[1:]...)...)
+			if home, herr := os.UserHomeDir(); herr == nil {
+				for _, dir := range []string{".bun/bin", ".local/bin", ".pi/agent/bin"} {
+					cmd.Env = append(cmd.Env, "PATH="+os.Getenv("PATH")+":"+filepath.Join(home, dir))
+				}
+			}
+			stdin, _ := cmd.StdinPipe()
+			stdout, _ := cmd.StdoutPipe()
+			cmd.Stderr = os.Stderr
+			if err := cmd.Start(); err != nil {
+				log.Fatalf("pi spawn: %v", err)
+			}
+			if err := pibridge.Run(stdout, stdin); err != nil {
+				log.Printf("pi bridge: %v", err)
+				stdin.Close()
+				cmd.Wait()
+				os.Exit(1)
+			}
+			stdin.Close()
+			cmd.Wait()
 			return
 		}
 		if a == "__acp" {
