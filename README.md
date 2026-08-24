@@ -65,6 +65,23 @@ curl -fsSL https://raw.githubusercontent.com/cfpperche/agentdeck/main/scripts/in
 # add --systemd to install and start the systemd user unit as well
 ```
 
+**What the installer does**: detects your platform (linux/darwin,
+amd64/arm64) → resolves the latest release (or `--version vX.Y.Z`) →
+downloads the single binary with the web UI embedded → verifies the
+SHA256 checksum → installs to `~/.local/bin/agentdeck` (no sudo).
+`--systemd` additionally installs and starts a user unit
+(`systemctl --user status agentdeck`).
+
+**First boot** (`agentdeck`, or start the unit): it looks for at least
+one authenticated agent CLI (`claude`, `codex`, `grok`, `pi`,
+`opencode`) and refuses to start without one; binds the first free
+port in `8444-8454` (override: Settings → Server, or `AGENTDECK_PORT`
+with a range for headless); generates a self-signed TLS cert on first
+run (run `scripts/setup-cert.sh` if you have mkcert and want a
+cert your browser already trusts). Data lives under the data dir
+(SQLite + per-session workspaces). Open the printed URL from this
+machine or over your tailnet/LAN.
+
 **From source** — prerequisites: one or more agent CLIs installed and
 authenticated, Go 1.22+ and Node 22+.
 
