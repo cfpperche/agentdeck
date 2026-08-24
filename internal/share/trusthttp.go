@@ -184,7 +184,7 @@ ol li{margin:8px 0}
 
   <section id="s1">
     <h1>Install trust</h1>
-    <p class="lead ios">Safari will say the profile is not signed. That’s normal for a local CA — tap Install anyway. If PiCode already works on this phone, skip to Open.</p>
+    <p class="lead ios">Safari will say the profile is not signed. That’s normal for a local CA — tap Install anyway.</p>
     <p class="lead android">Download the certificate, then install it as a CA.</p>
     <p class="lead other">Choose your phone.</p>
     <a class="btn btn-pri ios" href="/agentdeck-ca.mobileconfig" id="dl-ios">Allow profile</a>
@@ -195,7 +195,6 @@ ol li{margin:8px 0}
       <a class="btn btn-sec" href="?os=android` + q + `">Android</a>
     </div>
     <button class="btn btn-sec" type="button" data-go="2">I installed it</button>
-    <button class="btn btn-sec ios" type="button" data-go="3">Skip — PiCode already works here</button>
   </section>
 
   <section id="s2" class="hidden">
@@ -302,13 +301,13 @@ func mobileconfig(der []byte) []byte {
 <key>PayloadContent</key><data>%s</data>
 <key>PayloadDescription</key><string>Trust AgentDeck local HTTPS</string>
 <key>PayloadDisplayName</key><string>AgentDeck mkcert</string>
-<key>PayloadIdentifier</key><string>dev.mkcert.local</string>
+<key>PayloadIdentifier</key><string>dev.agentdeck.mkcert</string>
 <key>PayloadType</key><string>com.apple.security.root</string>
 <key>PayloadUUID</key><string>%s</string>
 <key>PayloadVersion</key><integer>1</integer>
 </dict></array>
 <key>PayloadDisplayName</key><string>AgentDeck</string>
-<key>PayloadIdentifier</key><string>dev.mkcert.local.trust</string>
+<key>PayloadIdentifier</key><string>dev.agentdeck.trust</string>
 <key>PayloadRemovalDisallowed</key><false/>
 <key>PayloadType</key><string>Configuration</string>
 <key>PayloadUUID</key><string>%s</string>
