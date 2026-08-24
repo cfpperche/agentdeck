@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
@@ -10,10 +10,9 @@ function wsURL(path) {
 
 // TerminalDock (ADR-0006 + 0008): closed by default, real header,
 // × hides (detach). The tmux session keeps running.
-export function TerminalDock({ open, sessionName, title, onClose, height = 280 }) {
+export function TerminalDock({ open, sessionName, title, onClose, maximized, onToggleMax, height = 280 }) {
   const hostRef = useRef(null);
   const termRef = useRef(null);
-  const [max, setMax] = useState(false);
 
   useEffect(() => {
     if (!open || !sessionName || !hostRef.current) return;
@@ -85,15 +84,15 @@ export function TerminalDock({ open, sessionName, title, onClose, height = 280 }
     if (open && termRef.current?.fit) {
       requestAnimationFrame(() => termRef.current.fit.fit());
     }
-  }, [open, max, height]);
+  }, [open, maximized, height]);
 
   if (!open) return null;
   return (
     <div
-      class="flex flex-col shrink-0"
+      class={`flex flex-col ${maximized ? "flex-1 min-h-0" : "shrink-0"}`}
       style={{
-        height: max ? "100%" : height,
-        borderTop: "1px solid var(--border)",
+        height: maximized ? undefined : height,
+        borderTop: maximized ? "none" : "1px solid var(--border)",
         background: "#0e0e11",
       }}
     >
@@ -104,11 +103,11 @@ export function TerminalDock({ open, sessionName, title, onClose, height = 280 }
         </span>
         <div class="ml-auto flex items-center gap-1">
           <button
-            onClick={() => setMax((m) => !m)}
+            onClick={onToggleMax}
             class="h-6 w-6 grid place-items-center rounded"
-            style={{ color: "var(--text-3)" }}
-            title={max ? "restore" : "maximize"}
-            aria-label={max ? "restore" : "maximize"}
+            style={{ color: maximized ? "var(--text-1)" : "var(--text-3)" }}
+            title={maximized ? "restore" : "maximize"}
+            aria-label={maximized ? "restore" : "maximize"}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
           </button>

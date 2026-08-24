@@ -30,6 +30,7 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
   const [caps, setCaps] = useState(null);
   const [surface, setSurface] = useState("chat"); // chat | terminal
   const [dockOpen, setDockOpen] = useState(false);
+  const [termMax, setTermMax] = useState(false);
   const [tmuxName, setTmuxName] = useState("");
 
   useEffect(() => {
@@ -106,6 +107,7 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
 
   return (
     <div class="flex-1 flex flex-col min-w-0 relative" style={{ background: "var(--bg-canvas)" }}>
+      {!termMax && <>
       {/* slim state toolbar — renders ONLY when it has content:
           cwd badge, status, queue or stop (desktop), or on mobile where
           it hosts the menu button. Otherwise no ghost band under the tab
@@ -263,7 +265,7 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
         caps={caps}
         termOpen={dockOpen}
         onToggleTerm={async () => {
-          if (dockOpen) { setDockOpen(false); return; }
+          if (dockOpen) { setDockOpen(false); setTermMax(false); return; }
           try {
             const info = await api.openTerminal(sid);
             setTmuxName(info.session || "");
@@ -274,11 +276,14 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
           }
         }}
       />
+      </>}
       <TerminalDock
         open={dockOpen}
         sessionName={tmuxName}
         title={session.title || agentMeta?.label || "agent"}
-        onClose={() => setDockOpen(false)}
+        maximized={termMax}
+        onToggleMax={() => setTermMax((m) => !m)}
+        onClose={() => { setDockOpen(false); setTermMax(false); }}
       />
 
       {toast && (

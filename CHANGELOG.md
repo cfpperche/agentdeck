@@ -50,6 +50,9 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 - **Devices** (`/devices`): host vs other browsers (15s ping, 45s online).
 
 ### Fixed
+- **Terminal maximize hid nothing**: fullscreen only grew the dock
+  under the composer. Maximize now fills the session column and hides
+  the composer (PiCode `.dock.maximized` + hidden conversation).
 - **Terminal dock never showed the TUI**: two stacked bugs. (1)
   `withWebUI` only forwarded `/api/`, so `/ws/term` was served as the
   SPA HTML. (2) the attach PTY inherited the systemd unit's empty
