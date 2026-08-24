@@ -7,6 +7,12 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **"New session" is now a configuration TAB**: the sidebar button (and
+  the mobile CTA) opens a "New session" tab with the session setup —
+  runtime (agent) picker today, designed as the extension point for
+  future options (model, workdir, permission mode, ...). Home agent
+  chips keep instant-create. The ghost "AgentDeck" label no longer
+  renders when zero tabs are open (empty bar, per user report).
 - **Editor-style session tabs + home redesign**: sessions open as TABS
   (bar on top, one active, closeable ×, all mounted — switching never
   loses SSE streams, drafts or pending permissions); home `/` is the

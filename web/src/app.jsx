@@ -5,6 +5,9 @@ import { AgentIcon } from "./icons.jsx";
 import { Chat } from "./chat.jsx";
 import { SettingsPanel } from "./components.jsx";
 import { useTheme } from "./theme.js";
+import { NewSessionPanel } from "./newsession.jsx";
+
+const NEW_TAB_ID = "__new__";
 
 // App shell: sidebar + open-session TABS (editor-style). All open tabs
 // stay mounted (hidden ones keep SSE/drafts/permissions alive).
@@ -104,13 +107,23 @@ export function App() {
     else setOpenTabsAndActive(ids, id);
   };
 
+  // instant create (home chips) — config tab is the sidebar's New session
   const openNewSession = (agentId) => {
     const agent = agentId || agents[0]?.id;
     if (!agent) return;
     api.createSession(agent).then((s) => {
       refreshSessions();
-      openSession(s.id);
+      const ids = openTabs.map((t) => t.id).filter((x) => x !== NEW_TAB_ID);
+      setOpenTabsAndActive([...ids, s.id], s.id);
     });
+  };
+
+  // "New session" opens a CONFIG TAB (runtime picker today; extensible
+  // to post-runtime options). Home agent chips create immediately.
+  const openNewSessionTab = () => {
+    const ids = openTabs.map((t) => t.id);
+    if (!ids.includes(NEW_TAB_ID)) setOpenTabsAndActive([...ids, NEW_TAB_ID], NEW_TAB_ID);
+    else setOpenTabsAndActive(ids, NEW_TAB_ID);
   };
 
   const closeTab = (id) => {
@@ -131,7 +144,7 @@ export function App() {
         filter={filter}
         setFilter={setFilter}
         onOpen={openSession}
-        onNew={() => { setSettingsOpen(false); openNewSession(); }}
+        onNew={() => { setSettingsOpen(false); openNewSessionTab(); }}
         onRename={(id, t) => api.renameSession(id, t).then(refreshSessions)}
         onDelete={(id) => {
           api.deleteSession(id).then(() => {
@@ -149,14 +162,11 @@ export function App() {
       <main class="flex-1 flex flex-col min-w-0" style={{ background: "var(--bg-canvas)" }}>
         {/* tab bar */}
         <div class="flex items-stretch h-9 shrink-0 overflow-x-auto" style={{ background: "var(--bg-panel)", borderBottom: "1px solid var(--border-soft)" }}>
-          {openTabs.length === 0 && !settingsOpen && (
-            <div class="flex items-center px-4 gap-2 text-[12px]" style={{ color: "var(--text-3)" }}>
-              <Logo size={13} /> AgentDeck
-            </div>
-          )}
+
           {openTabs.map((t) => {
             const active = t.id === activeId;
             const ag = agentById[t.agent];
+            const isNew = t.id === NEW_TAB_ID;
             return (
               <div
                 key={t.id}
@@ -170,8 +180,12 @@ export function App() {
                 }}
                 title={t.title}
               >
-                {ag && <AgentIcon id={t.agent} size={12} color={ag.color} />}
-                <span class="truncate">{t.title || "untitled"}</span>
+                {isNew ? (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                ) : ag ? (
+                  <AgentIcon id={t.agent} size={12} color={ag.color} />
+                ) : null}
+                <span class="truncate">{isNew ? "New session" : (t.title || "untitled")}</span>
                 <button
                   onClick={(e) => { e.stopPropagation(); closeTab(t.id); }}
                   class="h-5 w-5 grid place-items-center rounded opacity-0 group-hover:opacity-100"
@@ -204,9 +218,20 @@ export function App() {
         {/* views: all tabs stay mounted; hidden ones keep their state */}
         {settingsOpen ? (
           <SettingsPanel themePref={theme.pref} currentTheme={theme.current} onSetTheme={theme.setPref} />
+        ) : activeId === NEW_TAB_ID ? (
+          <NewSessionPanel
+            agents={agents}
+            onCreate={(agentId) => {
+              api.createSession(agentId).then((s) => {
+                refreshSessions();
+                const ids = openTabs.map((t) => t.id).filter((x) => x !== NEW_TAB_ID);
+                setOpenTabsAndActive([...ids, s.id], s.id);
+              });
+            }}
+          />
         ) : activeTab ? (
           <>
-            {openTabs.map((t) => (
+            {openTabs.filter((t) => t.id !== NEW_TAB_ID).map((t) => (
               <div key={t.id} style={{ display: t.id === activeId ? "flex" : "none" }} class="flex-1 min-h-0">
                 <Chat
                   session={t}
