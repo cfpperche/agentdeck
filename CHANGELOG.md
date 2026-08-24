@@ -7,6 +7,9 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- ADR-0006: chat is the conversation surface; a terminal panel (when
+  built) must be closed by default, toggled from the toolbar, and own
+  a real header with a functional close control.
 - **Web test suite (vitest + Testing Library)**: 16 tests covering the
   API client contract (request shapes incl. optional cwd/updatedInput,
   SSE parsing with malformed-line tolerance), the theme hook (system

@@ -136,3 +136,5 @@ let you reproduce your own workflow, the docs are behind.
   `cert.pem`, `key.pem`) is gitignored — keep it that way.
 - Security-sensitive reports follow `docs/SECURITY.md`, never public
   issues.
+
+- ADR-0006: chat is the conversation surface; terminal panel is opt-in (closed by default, real header).
