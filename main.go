@@ -7,7 +7,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"log"
 	"net"
@@ -25,6 +24,7 @@ import (
 	"github.com/cfpperche/agentdeck/internal/config"
 	"github.com/cfpperche/agentdeck/internal/runner"
 	"github.com/cfpperche/agentdeck/internal/server"
+	"github.com/cfpperche/agentdeck/internal/share"
 	"github.com/cfpperche/agentdeck/internal/store"
 )
 
@@ -96,7 +96,7 @@ func main() {
 	srv := &server.Server{
 		Registry: reg, Store: st, Runner: r,
 		Mode: string(cfg.Mode), Version: Version,
-		Rebind: rebind,
+		Rebind: rebind, DataDir: cfg.DataDir, TLS: cfg.TLS,
 	}
 	handler := withWebUI(srv.Routes())
 
@@ -110,6 +110,7 @@ func main() {
 	srv.Host = cfg.Host
 	srv.SetCurrentPort(state.port)
 	logStartup(cfg, state.port, len(reg.List()))
+	share.EnsureTrustHTTP()
 
 	// graceful shutdown on signals
 	sigCh := make(chan os.Signal, 1)
@@ -188,7 +189,8 @@ func bindAndServe(handler http.Handler, cfg config.Config, ports config.PortConf
 			return nil, err
 		}
 		warnIfCertExpiring(cfg.DataDir, 30*24*time.Hour)
-		srv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
+		_ = cert
+		srv.TLSConfig = liveTLS(cfg.DataDir)
 		// wrap for TLS while keeping the plain listener
 		go func() {
 			if err := srv.ServeTLS(ln, "", ""); err != nil && err != http.ErrServerClosed {

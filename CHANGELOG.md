@@ -6,6 +6,15 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 
 ## [Unreleased]
 
+### Added
+
+- **Open on phone**: QR in the sidebar. `GET /api/share` checks HTTPS,
+  bind, reachable IP, cert SAN and mkcert. QR uses the selected LAN or
+  this-node Tailscale address (not the Windows host). HTTP `:8471`
+  installs the CA (iOS/Android wizard, Safari/Chrome gate, Opening…
+  splash). Cert SANs refresh via mkcert + TLS reload — no rebuild.
+- **Devices** (`/devices`): host vs other browsers (15s ping, 45s online).
+
 ## [0.10.0] - 2026-08-24
 
 ### Added

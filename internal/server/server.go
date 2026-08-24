@@ -20,6 +20,7 @@ import (
 
 	"github.com/cfpperche/agentdeck/internal/agent"
 	"github.com/cfpperche/agentdeck/internal/config"
+	"github.com/cfpperche/agentdeck/internal/presence"
 	"github.com/cfpperche/agentdeck/internal/runner"
 	"github.com/cfpperche/agentdeck/internal/store"
 )
@@ -34,6 +35,10 @@ type Server struct {
 	Host     string  // bind host for the port probe (default 127.0.0.1)
 
 	currentPort atomic.Int32
+
+	DataDir  string
+	TLS      bool
+	Presence *presence.Registry
 }
 
 // CurrentPort returns the port this process is serving on.
@@ -49,6 +54,9 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/fs/dirs", s.handleListDirs)
 	mux.HandleFunc("POST /api/fs/mkdir", s.handleMkdir)
 	mux.HandleFunc("GET /api/server-info", s.handleServerInfo)
+	mux.HandleFunc("GET /api/share", s.handleShare)
+	mux.HandleFunc("POST /api/devices/ping", s.handleDevicePing)
+	mux.HandleFunc("GET /api/devices", s.handleDeviceList)
 	mux.HandleFunc("GET /api/server/port", s.handleGetPort)
 	mux.HandleFunc("PUT /api/server/port", s.handlePutPort)
 	mux.HandleFunc("GET /api/sessions", s.handleListSessions)

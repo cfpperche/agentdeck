@@ -51,7 +51,7 @@ const groupOf = (iso) => {
 /* --------------------------------------------------------------- sidebar */
 export function Sidebar({
   sessions, agents, activeId, filter, setFilter,
-  onOpen, onNew, onRename, onDelete, open, setOpen, theme, onToggleTheme, onOpenSettings,
+  onOpen, onNew, onRename, onDelete, open, setOpen, theme, onToggleTheme, onOpenSettings, onOpenDevices,
 }) {
   const [editing, setEditing] = useState(null);
   const [editTitle, setEditTitle] = useState("");
@@ -91,7 +91,10 @@ export function Sidebar({
         <div class="flex items-center gap-2.5 px-4 h-14 shrink-0" style={{ borderBottom: "1px solid var(--border-soft)" }}>
           <Logo size={21} />
           <span class="font-semibold tracking-tight text-[15px]" style={{ color: "var(--text-1)" }}>AgentDeck</span>
-          <button class="ml-auto md:hidden p-1.5" style={{ color: "var(--text-2)" }} onClick={() => setOpen(false)} aria-label="fechar">{I.x}</button>
+          <button type="button" id="btn-share" class="ml-auto p-1.5 rounded-md" style={{ color: "var(--text-2)" }} title="Open on phone" onClick={() => window.dispatchEvent(new CustomEvent("agentdeck-share"))} aria-label="Open on phone">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14h1v1M14 20h1v1M17 17h4v4h-4z"/></svg>
+          </button>
+          <button class="md:hidden p-1.5" style={{ color: "var(--text-2)" }} onClick={() => setOpen(false)} aria-label="fechar">{I.x}</button>
         </div>
 
         {/* actions */}
@@ -206,7 +209,7 @@ export function Sidebar({
         </nav>
 
         {/* user menu (Vercel-style; benchmark t3code SidebarChrome) */}
-        <UserMenu theme={theme} onToggleTheme={onToggleTheme} onOpenSettings={onOpenSettings} />
+        <UserMenu theme={theme} onToggleTheme={onToggleTheme} onOpenSettings={onOpenSettings} onOpenDevices={onOpenDevices} />
       </aside>
     </>
   );
@@ -588,7 +591,7 @@ function AboutSection() {
 
 
 /* ---------------------------------------------------------------- user menu */
-export function UserMenu({ theme, onToggleTheme, onOpenSettings }) {
+export function UserMenu({ theme, onToggleTheme, onOpenSettings, onOpenDevices }) {
   const [open, setOpen] = useState(false);
   const [info, setInfo] = useState(null);
   const ref = useRef(null);
@@ -639,6 +642,10 @@ export function UserMenu({ theme, onToggleTheme, onOpenSettings }) {
           <button role="menuitem" class={item} style={{ color: "var(--text-2)" }} onClick={() => { setOpen(false); onOpenSettings(); }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.09a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.09a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.09a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z"/></svg>
             Settings
+          </button>
+          <button role="menuitem" class={item} style={{ color: "var(--text-2)" }} onClick={() => { setOpen(false); onOpenDevices && onOpenDevices(); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+            Devices
           </button>
           <button role="menuitem" class={item} style={{ color: "var(--text-2)" }} onClick={() => onToggleTheme()}>
             {theme === "dark" ? (

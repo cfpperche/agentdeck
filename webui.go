@@ -46,6 +46,20 @@ func withWebUI(api http.Handler) http.Handler {
 
 // warnIfCertExpiring logs loudly when the leaf cert is close to expiry
 // (the weekly systemd timer renews; this is the observability net).
+func liveTLS(dataDir string) *tls.Config {
+	certPath := filepath.Join(dataDir, "cert.pem")
+	keyPath := filepath.Join(dataDir, "key.pem")
+	return &tls.Config{
+		GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			c, err := tls.LoadX509KeyPair(certPath, keyPath)
+			if err != nil {
+				return nil, err
+			}
+			return &c, nil
+		},
+	}
+}
+
 func warnIfCertExpiring(dataDir string, within time.Duration) {
 	b, err := os.ReadFile(filepath.Join(dataDir, "cert.pem"))
 	if err != nil {

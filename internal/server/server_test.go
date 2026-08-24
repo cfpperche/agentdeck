@@ -43,6 +43,32 @@ func newTestServer(t *testing.T) *httptest.Server {
 	return ts
 }
 
+func TestShareAndDevices(t *testing.T) {
+	ts := newTestServer(t)
+	resp, err := http.Get(ts.URL + "/api/share")
+	if err != nil || resp.StatusCode != 200 {
+		t.Fatalf("share: %v %v", err, resp)
+	}
+	var rep map[string]any
+	json.NewDecoder(resp.Body).Decode(&rep)
+	if _, ok := rep["checks"]; !ok {
+		t.Fatalf("share missing checks: %v", rep)
+	}
+	req, _ := http.NewRequest("POST", ts.URL+"/api/devices/ping", strings.NewReader(`{"id":"t1"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (iPhone)")
+	resp, _ = http.DefaultClient.Do(req)
+	if resp.StatusCode != 200 {
+		t.Fatalf("ping %d", resp.StatusCode)
+	}
+	resp, _ = http.Get(ts.URL + "/api/devices")
+	var devs []map[string]any
+	json.NewDecoder(resp.Body).Decode(&devs)
+	if len(devs) != 1 || devs[0]["name"] != "iPhone" {
+		t.Fatalf("devices = %v", devs)
+	}
+}
+
 func TestAPIContract(t *testing.T) {
 	ts := newTestServer(t)
 

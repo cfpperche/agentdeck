@@ -6,7 +6,7 @@
 > finish a phase. Companion to `AGENTS.md` (conventions/invariants);
 > this file is the *snapshot*, that one is the *law*.
 >
-> Last updated: 2026-08-23 (end of Phase 1)
+> Last updated: 2026-08-24 (phone QR + devices, ported from PiCode lessons)
 
 ## Where things stand
 

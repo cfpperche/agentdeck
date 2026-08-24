@@ -6,6 +6,8 @@ import { Chat } from "./chat.jsx";
 import { SettingsPanel } from "./components.jsx";
 import { useTheme } from "./theme.js";
 import { NewSessionPanel } from "./newsession.jsx";
+import { ShareDrawer } from "./share.jsx";
+import { DevicesPanel } from "./devices.jsx";
 
 const NEW_TAB_ID = "__new__";
 
@@ -18,6 +20,8 @@ export function App() {
   const [openTabs, setOpenTabs] = useState([]); // session objects
   const [activeId, setActiveId] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [devicesOpen, setDevicesOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isNarrow, setIsNarrow] = useState(() => matchMedia("(max-width: 767px)").matches);
@@ -58,11 +62,35 @@ export function App() {
       setOpenTabsAndActive(tabs, tab, false);
     }
     if (location.pathname.startsWith("/settings")) setSettingsOpen(true);
+    if (location.pathname.startsWith("/devices")) setDevicesOpen(true);
+  }, []);
+
+  useEffect(() => {
+    const on = () => setShareOpen(true);
+    addEventListener("agentdeck-share", on);
+    return () => removeEventListener("agentdeck-share", on);
+  }, []);
+
+  useEffect(() => {
+    const ping = () => {
+      let id = localStorage.getItem("agentdeck-device-id");
+      if (!id) { id = crypto.randomUUID(); localStorage.setItem("agentdeck-device-id", id); }
+      const host = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+      fetch("/api/devices/ping", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, host }),
+      }).catch(() => {});
+    };
+    ping();
+    const t = setInterval(ping, 15000);
+    return () => clearInterval(t);
   }, []);
 
   useEffect(() => {
     const onPop = () => {
       setSettingsOpen(location.pathname.startsWith("/settings"));
+      setDevicesOpen(location.pathname.startsWith("/devices"));
       const { tabs, tab } = parseURL();
       setOpenTabs((prev) => {
         // keep session objects we already have; fetch titles later
@@ -159,7 +187,8 @@ export function App() {
         setOpen={setSidebarOpen}
         theme={theme.current}
         onToggleTheme={theme.toggle}
-        onOpenSettings={() => { setSettingsOpen(true); setActiveId(null); history.pushState({}, "", "/settings"); }}
+        onOpenSettings={() => { setDevicesOpen(false); setSettingsOpen(true); setActiveId(null); history.pushState({}, "", "/settings"); }}
+        onOpenDevices={() => { setSettingsOpen(false); setDevicesOpen(true); setActiveId(null); history.pushState({}, "", "/devices"); }}
       />
 
       <main class="flex-1 flex flex-col min-w-0" style={{ background: "var(--bg-canvas)" }}>
@@ -221,6 +250,8 @@ export function App() {
         {/* views: all tabs stay mounted; hidden ones keep their state */}
         {settingsOpen ? (
           <SettingsPanel themePref={theme.pref} currentTheme={theme.current} onSetTheme={theme.setPref} />
+        ) : devicesOpen ? (
+          <DevicesPanel />
         ) : activeId === NEW_TAB_ID ? (
           <NewSessionPanel
             agents={agents}
@@ -250,6 +281,7 @@ export function App() {
           <Home agents={agents} onNew={openNewSession} onOpenSession={openSession} recent={sessions.slice(0, 6)} showRecent={sidebarOpen || isNarrow} />
         )}
       </main>
+      <ShareDrawer open={shareOpen} onClose={() => setShareOpen(false)} />
     </div>
   );
 }
