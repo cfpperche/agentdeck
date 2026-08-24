@@ -30,6 +30,7 @@ func (s *Server) Routes() http.Handler {
 
 	mux.HandleFunc("GET /api/agents", s.handleAgents)
 	mux.HandleFunc("GET /api/fs/dirs", s.handleListDirs)
+	mux.HandleFunc("POST /api/fs/mkdir", s.handleMkdir)
 	mux.HandleFunc("GET /api/server-info", s.handleServerInfo)
 	mux.HandleFunc("GET /api/sessions", s.handleListSessions)
 	mux.HandleFunc("POST /api/sessions", s.handleCreateSession)
@@ -103,6 +104,42 @@ func (s *Server) handleListDirs(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Slice(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
 	writeJSON(w, http.StatusOK, map[string]any{"path": root, "dirs": out})
+}
+
+// handleMkdir creates a directory (parents allowed). Guardrails:
+// absolute paths only, must stay under the user's home, rejects
+// existing dirs and hidden names.
+func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Path string `json:"path"`
+	}
+	if err := readBody(r, &in); err != nil || strings.TrimSpace(in.Path) == "" {
+		writeErr(w, 400, "path required")
+		return
+	}
+	abs, err := filepath.Abs(strings.TrimSpace(in.Path))
+	if err != nil {
+		writeErr(w, 400, "invalid path")
+		return
+	}
+	home, _ := os.UserHomeDir()
+	if home != "" && !strings.HasPrefix(abs, home+string(filepath.Separator)) && abs != home {
+		writeErr(w, 400, "must be inside your home directory")
+		return
+	}
+	if st, err := os.Stat(abs); err == nil {
+		if st.IsDir() {
+			writeErr(w, 409, "already exists")
+			return
+		}
+		writeErr(w, 400, "path exists and is not a directory")
+		return
+	}
+	if err := os.MkdirAll(abs, 0o755); err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]string{"path": abs})
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {

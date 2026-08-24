@@ -7,6 +7,12 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Create folders from the cwd browser**: `POST /api/fs/mkdir`
+  (parents allowed; guardrails: absolute paths only, restricted to the
+  user's home, 409 on duplicates, rejects files) + a "new folder" row
+  in the directory browser — type a name, create, it becomes the
+  selected cwd. Answers the dogfood question "how do I create a new
+  folder from the interface?" without leaving the flow.
 - **Per-session working directory (cwd)**: the New-session config tab
   gains a "working directory" section — free path input + server-side
   directory browser (directories only, hidden filtered, navigate up/

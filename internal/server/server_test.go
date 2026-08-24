@@ -255,3 +255,41 @@ func TestFsDirsAndSessionCwd(t *testing.T) {
 		t.Errorf("invalid cwd status = %d, want 400", resp.StatusCode)
 	}
 }
+
+func TestMkdir(t *testing.T) {
+	ts := newTestServer(t)
+	home, _ := os.UserHomeDir()
+	target := filepath.Join(home, "agentdeck-mkdir-test-"+time.Now().Format("150405.000"))
+	defer os.RemoveAll(target)
+
+	// create
+	resp, _ := http.Post(ts.URL+"/api/fs/mkdir", "application/json",
+		strings.NewReader(`{"path":"`+target+`"}`))
+	if resp.StatusCode != 201 {
+		t.Fatalf("mkdir = %d", resp.StatusCode)
+	}
+	if st, err := os.Stat(target); err != nil || !st.IsDir() {
+		t.Fatalf("dir not created: %v", err)
+	}
+
+	// duplicate → 409
+	resp, _ = http.Post(ts.URL+"/api/fs/mkdir", "application/json",
+		strings.NewReader(`{"path":"`+target+`"}`))
+	if resp.StatusCode != 409 {
+		t.Errorf("duplicate = %d, want 409", resp.StatusCode)
+	}
+
+	// outside home → 400
+	resp, _ = http.Post(ts.URL+"/api/fs/mkdir", "application/json",
+		strings.NewReader(`{"path":"/definitely/not/allowed"}`))
+	if resp.StatusCode != 400 {
+		t.Errorf("outside home = %d, want 400", resp.StatusCode)
+	}
+
+	// session with the new dir as cwd now works
+	resp, _ = http.Post(ts.URL+"/api/sessions", "application/json",
+		strings.NewReader(`{"agent":"claude","cwd":"`+target+`"}`))
+	if resp.StatusCode != 200 {
+		t.Errorf("session with fresh dir = %d", resp.StatusCode)
+	}
+}

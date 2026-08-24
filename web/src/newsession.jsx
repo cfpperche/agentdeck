@@ -12,6 +12,7 @@ export function NewSessionPanel({ agents, onCreate }) {
   const [browsePath, setBrowsePath] = useState("");
   const [browseDirs, setBrowseDirs] = useState(null);
   const [browseErr, setBrowseErr] = useState(null);
+  const [newFolder, setNewFolder] = useState("");
 
   const create = () => {
     if (!selected || creating) return;
@@ -23,6 +24,27 @@ export function NewSessionPanel({ agents, onCreate }) {
     setBrowsing(true);
     setBrowseErr(null);
     await loadDirs(browsePath || "");
+  };
+
+  const makeFolder = async () => {
+    const name = newFolder.trim();
+    if (!name || !browsePath) return;
+    setBrowseErr(null);
+    try {
+      const target = browsePath + "/" + name.replace(/^\/+/, "");
+      const r = await fetch("/api/fs/mkdir", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: target }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.detail || "cannot create");
+      setNewFolder("");
+      setCwd(j.path);
+      await loadDirs(browsePath); // show it in the list
+    } catch (e) {
+      setBrowseErr(String(e.message || e));
+    }
   };
 
   const loadDirs = async (p) => {
@@ -110,6 +132,17 @@ export function NewSessionPanel({ agents, onCreate }) {
                 class="text-[11px] px-2 h-6 rounded-md"
                 style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-fg)" }}>use this</button>
               <button onClick={() => setBrowsing(false)} class="text-[11px] px-1" style={{ color: "var(--text-3)" }}>✕</button>
+            </div>
+            <div class="flex items-center gap-2 px-3 py-2" style={{ background: "var(--bg-card)", borderBottom: "1px solid var(--border-soft)" }}>
+              <input value={newFolder} onInput={(e) => setNewFolder(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), makeFolder())}
+                placeholder="new folder name…"
+                spellCheck="false"
+                class="flex-1 h-8 rounded-md px-2.5 text-[12px] font-mono focus:outline-none"
+                style={{ background: "var(--bg-raised)", border: "1px solid var(--border-soft)", color: "var(--text-1)" }} />
+              <button onClick={makeFolder} disabled={!newFolder.trim()}
+                class="h-8 px-3 rounded-md text-[12px] disabled:opacity-30"
+                style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-fg)" }}>create</button>
             </div>
             <div class="max-h-56 overflow-y-auto" style={{ background: "var(--bg-card)" }}>
               {browseDirs === null && <p class="px-3 py-3 text-[12px]" style={{ color: "var(--text-3)" }}>loading…</p>}
