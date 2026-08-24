@@ -257,6 +257,13 @@ func (r *Runner) deliver(sid string, ss *store.Session, adapter agent.Adapter, t
 	cwd := r.sessionDir(sid, ss.Cwd)
 	hasHistory := r.Store.HasAssistantReply(sid)
 	argv := adapter.Build(text, ss.AgentRef, cwd, hasHistory)
+	// composer controls (ADR-0006): fallback tier injects flags at spawn
+	r.mu.Lock()
+	c := r.ctrls[sid]
+	r.mu.Unlock()
+	if c != nil && adapter.ApplyControls != nil {
+		argv = adapter.ApplyControls(argv, c)
+	}
 
 	r.setStatus(sid, StatusRunning)
 	go r.pump(sid, adapter, argv, cwd, ctx)

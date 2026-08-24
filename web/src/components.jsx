@@ -374,7 +374,29 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
           {/* control strip INSIDE the box: chips left, send right */}
           <div class="flex items-center justify-between gap-2 pl-2 pr-2 pb-2 pt-0.5">
             <div class="flex items-center gap-1.5 min-w-0">
-              {caps?.models?.length > 0 && ctrl.model && (() => {
+              {/* runtime whose only model is "default" (no id): thinking
+                  variants render directly on the strip */}
+              {(caps?.models || []).some((m) => !m.id && m.thinking_options?.length) && (() => {
+                const m = caps.models.find((x) => !x.id);
+                return (
+                  <div class="flex items-center gap-1">
+                    <span class="text-[11px] font-medium" style={{ color: "var(--text-3)" }}>thinking</span>
+                    {m.thinking_options.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => updCtrl({ thinking: t.id })}
+                        class="px-2 py-1 rounded-md text-[11px] transition-colors"
+                        style={{
+                          background: ctrl.thinking === t.id ? "var(--accent-bg, var(--bg-hover))" : "transparent",
+                          border: `1px solid ${ctrl.thinking === t.id ? "var(--accent)" : "var(--border)"}`,
+                          color: ctrl.thinking === t.id ? "var(--accent-fg)" : "var(--text-3)",
+                        }}
+                      >{t.label}</button>
+                    ))}
+                  </div>
+                );
+              })()}
+              {caps?.models?.filter((m) => m.id).length > 0 && ctrl.model && (() => {
                 const m = caps.models.find((x) => x.id === ctrl.model);
                 return (
                   <div class="relative">

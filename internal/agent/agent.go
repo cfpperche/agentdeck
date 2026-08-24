@@ -93,6 +93,10 @@ type Adapter struct {
 	// a PERSISTENT bidirectional process (stdin/stdout JSONL). ref resumes
 	// the native session after a crash/restart.
 	BuildLive func(ref, cwd string) []string
+	// ApplyControls, when non-nil, injects composer controls (ADR-0006)
+	// into a fallback-tier argv. Convention: the positional prompt is
+	// argv's last element unless the implementation says otherwise.
+	ApplyControls func(argv []string, c *Controls) []string
 }
 
 // Registry holds discovered agents, preserving stable order.
@@ -209,6 +213,53 @@ func DefaultCaps(agentID string) *Capabilities {
 				{ID: "acceptEdits", Label: "Auto-accept edits", Description: "File edits apply without asking"},
 				{ID: "plan", Label: "Plan only", Description: "Reads and research, no changes"},
 				{ID: "bypassPermissions", Label: "Full access", Description: "No permission prompts at all"},
+			},
+		}
+	case "codex":
+		return &Capabilities{
+			Models: []ModelDef{
+				{ID: "gpt-5-codex", Label: "GPT-5 Codex", IsDefault: true,
+					ThinkingOptions: []SelectOption{
+						{ID: "low", Label: "Low"}, {ID: "medium", Label: "Medium"},
+						{ID: "high", Label: "High"}, {ID: "minimal", Label: "Minimal"},
+					}},
+				{ID: "gpt-5", Label: "GPT-5",
+					ThinkingOptions: []SelectOption{
+						{ID: "low", Label: "Low"}, {ID: "medium", Label: "Medium"}, {ID: "high", Label: "High"},
+					}},
+			},
+			Modes: []ModeDef{
+				{ID: "manual", Label: "Ask before edits", Description: "Sandbox: workspace-write (default)"},
+				{ID: "plan", Label: "Plan only", Description: "Sandbox: read-only"},
+				{ID: "bypassPermissions", Label: "Full access", Description: "Sandbox: danger-full-access"},
+			},
+		}
+	case "grok":
+		return &Capabilities{
+			Models: []ModelDef{
+				{ID: "grok-4.6", Label: "Grok 4.6", IsDefault: true},
+				{ID: "grok-4.5", Label: "Grok 4.5"},
+			},
+			Modes: []ModeDef{}, // CLI exposes no approval modes headless
+		}
+	case "pi":
+		return &Capabilities{
+			Models: []ModelDef{
+				{ID: "", Label: "Default model", IsDefault: true,
+					ThinkingOptions: []SelectOption{
+						{ID: "off", Label: "Off"}, {ID: "minimal", Label: "Minimal"},
+						{ID: "low", Label: "Low"}, {ID: "medium", Label: "Medium"},
+						{ID: "high", Label: "High"}, {ID: "xhigh", Label: "Extra high"},
+					}},
+			},
+		}
+	case "opencode":
+		return &Capabilities{
+			Models: []ModelDef{
+				{ID: "", Label: "Default model", IsDefault: true,
+					ThinkingOptions: []SelectOption{
+						{ID: "minimal", Label: "Minimal"}, {ID: "high", Label: "High"}, {ID: "max", Label: "Max"},
+					}},
 			},
 		}
 	default:

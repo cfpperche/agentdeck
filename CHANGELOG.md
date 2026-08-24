@@ -9,6 +9,14 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [0.10.0] - 2026-08-24
 
 ### Added
+- **Curated catalogs for all five runtimes** (benchmark parity —
+  paseo/t3code keep static per-provider catalogs too): codex
+  (GPT-5 Codex/GPT-5, reasoning effort, sandbox-mapped modes), grok
+  (grok-4.6/4.5 from `grok models`, reasoning-effort), pi
+  (documented thinking levels on the default model), opencode
+  (--variant). Fallback tier applies controls as real CLI flags
+  (`ApplyControls` per adapter), verified against each CLI's --help
+  and unit-tested.
 - **Composer per runtime, phases A–C (ADR-0006)**: agents report a
   `capabilities` event (models with nested thinking variants, named
   permission modes); the composer renders a Cursor-style control strip

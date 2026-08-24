@@ -26,6 +26,15 @@ var adapterSpecs = []spec{
 				}
 				return argv
 			},
+			ApplyControls: func(argv []string, c *Controls) []string {
+				if c.Model != "" {
+					argv = append(argv, "--model", c.Model)
+				}
+				if c.Mode != "" {
+					argv = append(argv, "--permission-mode", c.Mode)
+				}
+				return argv // thinking: SDK-only today
+			},
 			BuildLive: buildClaudeLive(p),
 			Parse:     parseClaude,
 		}
@@ -40,6 +49,34 @@ var adapterSpecs = []spec{
 				}
 				return []string{p, "exec", "--json", "--skip-git-repo-check",
 					"-s", "workspace-write", text}
+			},
+			ApplyControls: func(argv []string, c *Controls) []string {
+				if c.Model != "" {
+					// insert before the positional prompt
+					argv = append([]string{argv[0], "-m", c.Model}, argv[1:]...)
+				}
+				if c.Thinking != "" {
+					newArgv := append([]string{}, argv[:len(argv)-1]...)
+					newArgv = append(newArgv, "-c", "model_reasoning_effort=\""+c.Thinking+"\"")
+					argv = append(newArgv, argv[len(argv)-1])
+				}
+				if c.Mode != "" {
+					// named composer mode -> codex sandbox policy
+					sandbox := map[string]string{
+						"plan":             "read-only",
+						"manual":           "workspace-write",
+						"acceptEdits":      "workspace-write",
+						"bypassPermissions": "danger-full-access",
+					}[c.Mode]
+					if sandbox != "" && sandbox != "workspace-write" {
+						for i, a := range argv {
+							if a == "-s" {
+								argv[i+1] = sandbox
+							}
+						}
+					}
+				}
+				return argv
 			},
 			Parse: parseCodex,
 		}
@@ -57,6 +94,16 @@ var adapterSpecs = []spec{
 				}
 				return append(argv, "-p", text)
 			},
+			ApplyControls: func(argv []string, c *Controls) []string {
+				tail := argv[len(argv)-1] // positional prompt stays last
+				if c.Model != "" {
+					argv = append(argv[:len(argv)-1], "-m", c.Model)
+				}
+				if c.Thinking != "" && c.Thinking != "off" {
+					argv = append(argv, "--reasoning-effort", c.Thinking)
+				}
+				return append(argv, tail)
+			},
 			Parse: parseGrok,
 		}
 	}},
@@ -70,6 +117,16 @@ var adapterSpecs = []spec{
 				}
 				return append(argv, text)
 			},
+			ApplyControls: func(argv []string, c *Controls) []string {
+				tail := argv[len(argv)-1]
+				if c.Model != "" {
+					argv = append(argv[:len(argv)-1], "--model", c.Model)
+				}
+				if c.Thinking != "" {
+					argv = append(argv, "--thinking", c.Thinking)
+				}
+				return append(argv, tail)
+			},
 			Parse: parsePi,
 		}
 	}},
@@ -82,6 +139,16 @@ var adapterSpecs = []spec{
 					argv = append(argv, "--session", ref)
 				}
 				return append(argv, text)
+			},
+			ApplyControls: func(argv []string, c *Controls) []string {
+				tail := argv[len(argv)-1]
+				if c.Model != "" {
+					argv = append(argv[:len(argv)-1], "-m", c.Model)
+				}
+				if c.Thinking != "" {
+					argv = append(argv, "--variant", c.Thinking)
+				}
+				return append(argv, tail)
 			},
 			Parse: parseOpenCode,
 		}
