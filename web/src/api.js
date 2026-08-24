@@ -1,3 +1,4 @@
+/// <reference path="./api-types.d.ts" />
 const json = (r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(e)));
 
 export const api = {

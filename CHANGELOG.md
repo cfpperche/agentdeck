@@ -7,6 +7,19 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Web test suite (vitest + Testing Library)**: 16 tests covering the
+  API client contract (request shapes incl. optional cwd/updatedInput,
+  SSE parsing with malformed-line tolerance), the theme hook (system
+  resolution, persistence, live OS tracking), and the Chat component's
+  critical flows (optimistic send, queued tag, permission queue with
+  counter + edit-input + allow-with-edits + deny, running/waiting
+  badges).
+- **Generated API contract types** (`scripts/gen-types.sh` →
+  `web/src/api-types.d.ts`): mirrors the Go handler payloads; single
+  source of truth for the HTTP surface.
+- **Smoke E2E in CI** (`scripts/smoke-e2e.sh`): real binary + fake SDK
+  — boot, agent registry, live turn with in-process memory, fs/dirs +
+  mkdir (home-scoped), session-with-cwd, port info + range rejection.
 - **Port configuration (PiCode-parity mechanism)**: `PortConfig`
   (single or range) — boot tries the range and binds the first free
   port; Settings → Server lets the user move the app to a specific
