@@ -172,7 +172,7 @@ func ApplyLive(b Bar, u *agent.Usage) Bar {
 func defaultWindow(agent, model string) int {
 	m := strings.ToLower(model)
 	switch {
-	case strings.Contains(m, "grok"):
+	case strings.Contains(m, "grok") || agent == "grok":
 		return 500_000
 	case strings.Contains(m, "claude") || strings.Contains(m, "sonnet") || strings.Contains(m, "opus"):
 		return 200_000

@@ -207,6 +207,8 @@ func (b *Bridge) handleAgentMessage(n *Next) error {
 				"content": []map[string]any{{"type": "tool_use",
 					"name": u.Update.Title, "input": json.RawMessage(u.Update.RawInput)}}}})
 		}
+	case "_x.ai/session_notification", "x.ai/session_notification", "_x.ai/session/prompt_complete":
+		emitUsageFromACP(n.Params)
 	case "session/request_permission":
 		var pr PermissionRequest
 		if json.Unmarshal(n.Params, &pr) != nil {
@@ -310,9 +312,11 @@ func (b *Bridge) awaitPromptReply(id int64) {
 		return
 	}
 	var r struct {
-		StopReason string `json:"stopReason"`
+		StopReason string          `json:"stopReason"`
+		Meta       json.RawMessage `json:"_meta"`
 	}
 	json.Unmarshal(res, &r)
+	emitUsageFromACP(res)
 	// the wire contract needs non-empty final text (parseClaude gates
 	// KindFinal on it) — send what we streamed as the authoritative turn.
 	b.mu.Lock()

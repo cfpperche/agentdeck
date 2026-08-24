@@ -7,6 +7,9 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Composer statusline — Grok**: ACP `_x.ai/session_notification`
+  and prompt-result `_meta` (input/output/cache/totalTokens) become
+  the same usage pulse. Default window 500k.
 - **Composer statusline — Codex**: live tokens from
   `thread/tokenUsage/updated` (window included). Same Bar as pi.
 - **Composer statusline (pi first)**: cwd, git branch/dirty, context
