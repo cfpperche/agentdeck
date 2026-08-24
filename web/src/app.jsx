@@ -40,6 +40,9 @@ export function App() {
     const tabs = (p.get("tabs") || "").split(",").filter(Boolean);
     const tab = p.get("tab");
     if (p.get("s")) return { legacy: p.get("s") }; // pre-tabs deep-link
+    // /s/<id> path deep-link (shared links, history entries)
+    const m = location.pathname.match(/^\/s\/([A-Za-z0-9_-]+)\/?$/);
+    if (m) return { legacy: m[1] };
     return { tabs, tab: tabs.includes(tab) ? tab : tabs[0] || null };
   };
 

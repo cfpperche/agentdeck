@@ -26,6 +26,11 @@ const waitFor = (pred, ms = 8000) =>
 
 const assert = (c, m) => { if (!c) { console.error("FAIL:", m, JSON.stringify(out)); process.exit(1); } };
 
+// 0. composer controls (ADR-0006): applied before first turn
+send({ type: "set_controls", model: "opus", thinking: "", permission_mode: "" });
+await waitFor((e) => e.type === "controls-applied" && e.model === "opus");
+assert(true, "set_controls acknowledged");
+
 // 1. memory across turns (same shim process)
 send({ type: "user", message: { role: "user", content: [{ type: "text", text: "Remember: sdk rocks" }] } });
 await waitFor((e) => e.type === "result");

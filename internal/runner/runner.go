@@ -78,6 +78,7 @@ type Runner struct {
 	state   map[string]SessionStatus
 	pending map[string][]StreamEvent // unanswered permission requests, in order
 	caps    map[string]*agent.Capabilities // last reported composer surface
+	ctrls   map[string]*agent.Controls // last composer selection per session
 	queues  map[string][]string      // messages waiting for the current turn
 	subs    map[string]map[chan StreamEvent]struct{}
 }
@@ -91,6 +92,7 @@ func New(reg *agent.Registry, st *store.Store, workspaces string) *Runner {
 		state:   map[string]SessionStatus{},
 		pending: map[string][]StreamEvent{},
 		caps:    map[string]*agent.Capabilities{},
+		ctrls:   map[string]*agent.Controls{},
 		queues:  map[string][]string{},
 		subs:    map[string]map[chan StreamEvent]struct{}{},
 	}
@@ -148,12 +150,20 @@ func (r *Runner) broadcast(sid string, ev StreamEvent) {
 	}
 }
 
-// Caps returns the composer surface reported by the agent for a
-// session, or nil before the first "capabilities" event.
+// Caps returns the composer surface for a session: the dynamically
+// reported one when available, else the per-agent defaults so the UI
+// can render controls before the first spawn.
 func (r *Runner) Caps(sid string) *agent.Capabilities {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.caps[sid]
+	c := r.caps[sid]
+	r.mu.Unlock()
+	if c != nil {
+		return c
+	}
+	if ss, err := r.Store.GetSession(sid); err == nil && ss != nil {
+		return agent.DefaultCaps(ss.Agent)
+	}
+	return nil
 }
 
 // PendingPermissions returns all unanswered permission events for a
@@ -170,7 +180,12 @@ func (r *Runner) PendingPermissions(sid string) []StreamEvent {
 // (steering). The user message is persisted immediately either way;
 // queued messages are delivered automatically when the turn ends.
 // Returns (queued, error): queued=true means accepted into the queue.
-func (r *Runner) Send(sid, text string) (bool, error) {
+func (r *Runner) Send(sid, text string, ctrls ...*agent.Controls) (bool, error) {
+	if len(ctrls) > 0 && ctrls[0] != nil {
+		r.mu.Lock()
+		r.ctrls[sid] = ctrls[0] // per-session state; persists across turns
+		r.mu.Unlock()
+	}
 	ss, err := r.Store.GetSession(sid)
 	if err != nil {
 		return false, err

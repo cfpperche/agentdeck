@@ -19,11 +19,11 @@ export const api = {
   deleteSession: (id) =>
     fetch(`/api/sessions/${id}`, { method: "DELETE" }).then(json),
   messages: (id) => fetch(`/api/sessions/${id}/messages`).then(json),
-  send: (id, text) =>
+  send: (id, text, controls) =>
     fetch(`/api/sessions/${id}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify(controls ? { text, controls } : { text }),
     }).then(json),
   control: (id, requestId, behavior, updatedInput) =>
     fetch(`/api/sessions/${id}/control`, {

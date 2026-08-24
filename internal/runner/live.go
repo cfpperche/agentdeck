@@ -201,6 +201,17 @@ func (r *Runner) sendLive(sid string, adapter agent.Adapter, text string) error 
 	if err != nil {
 		return err
 	}
+	// composer controls (ADR-0006): push the current selection before the
+	// message whenever one exists — the shim merges it into the next turn.
+	r.mu.Lock()
+	c := r.ctrls[sid]
+	r.mu.Unlock()
+	if c != nil && (c.Model != "" || c.Thinking != "" || c.Mode != "") {
+		if err := lp.write(map[string]any{"type": "set_controls",
+			"model": c.Model, "thinking": c.Thinking, "permission_mode": c.Mode}); err != nil {
+			return err
+		}
+	}
 	return lp.write(map[string]any{
 		"type": "user",
 		"message": map[string]any{

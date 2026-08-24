@@ -19,9 +19,20 @@ const onLine = async (raw, handlers) => {
   if (msg.type === "user" && handlers.onUser) await handlers.onUser(msg);
   if (msg.type === "control_response" && handlers.onControl)
     await handlers.onControl(msg);
+  if (msg.type === "set_controls") {
+    // ADR-0006: composer selection for upcoming turns. Empty strings
+    // mean "keep previous".
+    controls = {
+      model: msg.model || controls.model,
+      thinking: msg.thinking || controls.thinking,
+      permissionMode: msg.permission_mode || controls.permissionMode,
+    };
+    emit({ type: "controls-applied", ...controls });
+  }
 };
 
 const pendingPermissions = new Map(); // request_id -> resolve(result)
+let controls = { model: null, thinking: null, permissionMode: null };
 
 // Composer surface (ADR-0006): what this runtime offers the UI.
 // Models are the SDK's alias strings; thinking = extended thinking
@@ -94,9 +105,12 @@ async function main() {
       prompt: text,
       options: {
         cwd: process.cwd(),
+        // composer selection wins over env default (ADR-0006)
+        ...(controls.model ? { model: controls.model } : {}),
+        ...(controls.thinking === "on" ? { maxThinkingTokens: 16000 } : {}),
         // manual = every tool call asks via canUseTool (AgentDeck always
-        // answers through control_response); env can override per-deployment
-        permissionMode: process.env.AGENTDECK_SDK_PERMISSION_MODE || "manual",
+        // answers through control_response); env/env-override is fallback
+        permissionMode: controls.permissionMode || process.env.AGENTDECK_SDK_PERMISSION_MODE || "manual",
         // When AgentDeck is listening (it always is, via control_response),
         // 'ask' decisions must surface as canUseTool calls, never auto-deny.
         ...(resume ? { resume } : {}),

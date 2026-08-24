@@ -61,6 +61,35 @@ export interface CreateSessionIn {
   cwd?: string;
 }
 
+// composer surface (ADR-0006)
+export interface SelectOption {
+  id: string;
+  label: string;
+  is_default?: boolean;
+}
+export interface ModelDef {
+  id: string;
+  label: string;
+  is_default?: boolean;
+  thinking_options?: SelectOption[];
+  default_thinking_option_id?: string;
+}
+export interface ModeDef {
+  id: string;
+  label: string;
+  description?: string;
+}
+export interface Capabilities {
+  models: ModelDef[];
+  modes: ModeDef[];
+}
+// sent alongside a message
+export interface ComposerControls {
+  model?: string;
+  thinking?: string;
+  mode?: string;
+}
+
 // POST /api/sessions/{id}/messages -> 200 | 202
 export interface SendOut {
   ok: boolean;

@@ -339,7 +339,8 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSend(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Text string `json:"text"`
+		Text     string          `json:"text"`
+		Controls *agent.Controls `json:"controls"`
 	}
 	if err := readBody(r, &in); err != nil {
 		writeErr(w, 400, "invalid body")
@@ -349,7 +350,11 @@ func (s *Server) handleSend(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "empty message")
 		return
 	}
-	queued, err := s.Runner.Send(r.PathValue("id"), in.Text)
+	var ctrls []*agent.Controls
+	if in.Controls != nil {
+		ctrls = append(ctrls, in.Controls)
+	}
+	queued, err := s.Runner.Send(r.PathValue("id"), in.Text, ctrls...)
 	switch {
 	case err == nil && queued:
 		writeJSON(w, http.StatusAccepted, map[string]any{"ok": true, "queued": true})

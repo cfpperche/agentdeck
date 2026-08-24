@@ -9,6 +9,16 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [0.10.0] - 2026-08-24
 
 ### Added
+- **Composer per runtime, phases A–C (ADR-0006)**: agents report a
+  `capabilities` event (models with nested thinking variants, named
+  permission modes); the composer renders a Cursor-style control strip
+  inside the input box (model picker with search-free popover +
+  thinking sub-options, cycling mode chip with colored dot), persists
+  the selection per agent, and sends `controls` with each message;
+  runner pushes `set_controls` to the live process before delivery and
+  the shim applies them to SDK options (proven E2E: model reaches the
+  agent). Deep-link fix: `/s/<id>` paths now open the session tab
+  instead of falling back to home.
 - **Releases + installer**: tag-push workflow cross-compiles
   linux/darwin/windows (amd64+arm64) with embedded UI and publishes
   SHA256SUMS + CHANGELOG-derived notes; `scripts/install.sh` one-liner

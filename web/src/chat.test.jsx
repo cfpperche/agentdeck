@@ -57,8 +57,30 @@ describe("Chat", () => {
     render(<Chat session={session} agentMeta={agentMeta} />);
     const box = await screen.findByRole("textbox");
     await user.type(box, "do the thing{Enter}");
-    expect(api.send).toHaveBeenCalledWith("s1", "do the thing");
+    expect(api.send).toHaveBeenCalledWith("s1", "do the thing", undefined);
     expect(await screen.findByText("do the thing")).toBeInTheDocument();
+  });
+
+  it("capabilities drive composer controls sent along the message", async () => {
+    const user = userEvent.setup();
+    render(<Chat session={session} agentMeta={agentMeta} />);
+    await screen.findByText("hello");
+    await pushEvent({ type: "capabilities", models: [
+      { id: "sonnet", label: "Sonnet", is_default: true,
+        thinking_options: [{ id: "off", label: "Standard" }, { id: "on", label: "Thinking" }] },
+      { id: "opus", label: "Opus" },
+    ], modes: [{ id: "manual", label: "Ask before edits" }, { id: "acceptEdits", label: "Auto-accept" }] });
+
+    // model chip shows default; open picker and choose Opus
+    await user.click(await screen.findByText("Sonnet"));
+    await user.click(screen.getByText("Opus"));
+    // mode chip cycles manual -> acceptEdits
+    await user.click(screen.getByText("Ask before edits"));
+
+    const box = screen.getByRole("textbox");
+    await user.type(box, "with controls{Enter}");
+    expect(api.send).toHaveBeenLastCalledWith("s1", "with controls",
+      { model: "opus", mode: "acceptEdits" }); // no thinking: opus has none
   });
 
   it("queued messages show the queued tag", async () => {

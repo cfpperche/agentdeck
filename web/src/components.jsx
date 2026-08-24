@@ -268,9 +268,43 @@ export function Message({ m }) {
   );
 }
 
-export function Composer({ running, onSend, onStop, disabled, sessionId }) {
+export function Composer({ running, onSend, onStop, disabled, sessionId, agentId, caps }) {
   const [text, setText] = useState("");
   const ref = useRef(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // composer controls (ADR-0006): model/thinking/mode selected per agent,
+  // persisted so the next session starts where you left off.
+  const ctrlKey = agentId ? `agentdeck:controls:${agentId}` : null;
+  const [ctrl, setCtrl] = useState({ model: null, thinking: null, mode: null });
+  useEffect(() => {
+    if (!ctrlKey || !caps) return;
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(ctrlKey) || "{}"); } catch {}
+    const defModel = caps.models?.find((m) => m.is_default) || caps.models?.[0];
+    const model = caps.models?.some((m) => m.id === saved.model)
+      ? saved.model
+      : defModel?.id || null;
+    const m = caps.models?.find((x) => x.id === model);
+    const think = m?.thinking_options?.some((t) => t.id === saved.thinking)
+      ? saved.thinking
+      : m?.default_thinking_option_id || m?.thinking_options?.find((t) => t.is_default)?.id || null;
+    const mode = caps.modes?.some((x) => x.id === saved.mode)
+      ? saved.mode
+      : caps.modes?.find((x) => x.id === "manual")?.id || caps.modes?.[0]?.id || null;
+    setCtrl({ model, thinking: think, mode });
+  }, [ctrlKey, caps]);
+  const updCtrl = (patch) => {
+    setCtrl((c) => {
+      // switching model resets an invalid thinking choice
+      const next = { ...c, ...patch };
+      const m = caps?.models?.find((x) => x.id === next.model);
+      if (next.thinking && !m?.thinking_options?.some((t) => t.id === next.thinking))
+        next.thinking = m?.default_thinking_option_id || null;
+      if (ctrlKey) localStorage.setItem(ctrlKey, JSON.stringify(next));
+      return next;
+    });
+  };
 
   // draft persistence (G2): per-session draft survives reloads and
   // session switches; cleared on send
@@ -293,7 +327,12 @@ export function Composer({ running, onSend, onStop, disabled, sessionId }) {
     // no `running` guard: while a turn is in flight the message QUEUES
     // (steering, benchmark G3) — the server caps and 409s when full
     if (!text.trim() || disabled) return;
-    onSend(text.trim());
+    const controls = {
+      ...(ctrl.model ? { model: ctrl.model } : {}),
+      ...(ctrl.thinking ? { thinking: ctrl.thinking } : {}),
+      ...(ctrl.mode ? { mode: ctrl.mode } : {}),
+    };
+    onSend(text.trim(), Object.keys(controls).length ? controls : undefined);
     setText("");
     if (draftKey) localStorage.removeItem(draftKey);
   };
@@ -310,38 +349,123 @@ export function Composer({ running, onSend, onStop, disabled, sessionId }) {
         paddingRight: 12,
       }}
     >
-      <div class="max-w-3xl mx-auto flex items-end gap-2.5">
-        <textarea
-          ref={ref}
-          rows="1"
-          value={text}
-          disabled={disabled}
-          onInput={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
-          }}
-          placeholder={disabled ? "open a session to start" : "message the agent…"}
-          class="flex-1 resize-none rounded-xl px-4 py-3 text-[15px] focus:outline-none disabled:opacity-50 surface"
-          style={{ color: "var(--text-1)", background: "var(--bg-card)", border: "1px solid var(--border)", maxHeight: 160 }}
-          onfocus={(e) => (e.target.style.borderColor = "var(--border-strong)")}
-          onblur={(e) => (e.target.style.borderColor = "var(--border)")}
-        />
-        {running ? (
-          <button
-            onClick={onStop}
-            class="h-12 w-12 shrink-0 grid place-items-center rounded-xl transition-colors active:scale-95"
-            style={{ background: "var(--err)", color: "#fff" }}
-            title="parar agente"
-          >{I.stop}</button>
-        ) : (
-          <button
-            onClick={submit}
-            disabled={disabled || !text.trim()}
-            class="h-12 w-12 shrink-0 grid place-items-center rounded-xl transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100"
-            style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-fg)" }}
-            title="enviar (Enter)"
-          >{I.send}</button>
-        )}
+      <div class="max-w-3xl mx-auto">
+        {/* one bordered block owns everything (Cursor shape): textarea on
+            top, control strip inside the same box */}
+        <div
+          class="rounded-xl flex flex-col"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+          onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
+          onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+        >
+          <textarea
+            ref={ref}
+            rows="1"
+            value={text}
+            disabled={disabled}
+            onInput={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
+            }}
+            placeholder={disabled ? "open a session to start" : "message the agent\u2026"}
+            class="flex-1 resize-none px-4 pt-3 pb-1 text-[15px] focus:outline-none disabled:opacity-50 bg-transparent"
+            style={{ color: "var(--text-1)", maxHeight: 160, border: "none" }}
+          />
+          {/* control strip INSIDE the box: chips left, send right */}
+          <div class="flex items-center justify-between gap-2 pl-2 pr-2 pb-2 pt-0.5">
+            <div class="flex items-center gap-1.5 min-w-0">
+              {caps?.models?.length > 0 && ctrl.model && (() => {
+                const m = caps.models.find((x) => x.id === ctrl.model);
+                return (
+                  <div class="relative">
+                    <button
+                      onClick={() => setPickerOpen((o) => !o)}
+                      class="flex items-center gap-1.5 h-7 pl-2 pr-1.5 rounded-lg text-[12px] font-medium transition-colors hover:opacity-80"
+                      style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-2)" }}
+                      title="model"
+                    >
+                      {m?.label || ctrl.model}
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    {pickerOpen && (
+                      <>
+                        {/* click-away catcher */}
+                        <div class="fixed inset-0 z-40" onClick={() => setPickerOpen(false)} />
+                        <div
+                          class="absolute bottom-9 left-0 z-50 w-64 rounded-xl p-1.5 shadow-xl"
+                          style={{ background: "var(--bg-card)", border: "1px solid var(--border-strong)" }}
+                        >
+                          {caps.models.map((mo) => (
+                            <div key={mo.id}>
+                              <button
+                                onClick={() => { updCtrl({ model: mo.id }); setPickerOpen(false); }}
+                                class="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-[13px] transition-colors text-left hover:bg-[color:var(--bg-hover)]"
+                                style={{
+                                  color: mo.id === ctrl.model ? "var(--text-1)" : "var(--text-2)",
+                                }}
+                              >
+                                <span>{mo.label}</span>
+                                {mo.is_default && <span class="text-[10px] uppercase tracking-wide" style={{ color: "var(--text-3)" }}>default</span>}
+                              </button>
+                              {mo.id === ctrl.model && mo.thinking_options?.length > 0 && (
+                                <div class="flex gap-1 px-2 pb-2">
+                                  {mo.thinking_options.map((t) => (
+                                    <button
+                                      key={t.id}
+                                      onClick={() => updCtrl({ thinking: t.id })}
+                                      class="px-2 py-1 rounded-md text-[11px] transition-colors"
+                                      style={{
+                                        background: ctrl.thinking === t.id ? "var(--accent-bg, var(--bg-hover))" : "transparent",
+                                        border: `1px solid ${ctrl.thinking === t.id ? "var(--accent)" : "var(--border)"}`,
+                                        color: ctrl.thinking === t.id ? "var(--accent-fg)" : "var(--text-3)",
+                                      }}
+                                    >{t.label}</button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+              {caps?.modes?.length > 1 && ctrl.mode && (() => {
+                // paseo pattern: click cycles; colored dot carries the tier
+                const idx = caps.modes.findIndex((x) => x.id === ctrl.mode);
+                const cur = caps.modes[idx];
+                return (
+                  <button
+                    onClick={() => updCtrl({ mode: caps.modes[(idx + 1) % caps.modes.length].id })}
+                    class="flex items-center gap-1.5 h-7 px-2 rounded-lg text-[12px] font-medium transition-colors hover:opacity-80 truncate max-w-[220px]"
+                    style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-2)" }}
+                    title={`mode: ${cur.description || cur.label} (click to change)`}
+                  >
+                    <span class="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: idx === 0 ? "var(--ok)" : "var(--accent)" }} />
+                    <span class="truncate">{cur.label}</span>
+                  </button>
+                );
+              })()}
+            </div>
+            {running ? (
+              <button
+                onClick={onStop}
+                class="h-8 w-8 shrink-0 grid place-items-center rounded-lg transition-colors active:scale-95"
+                style={{ background: "var(--err)", color: "#fff" }}
+                title="stop agent"
+              >{I.stop}</button>
+            ) : (
+              <button
+                onClick={submit}
+                disabled={disabled || !text.trim()}
+                class="h-8 w-8 shrink-0 grid place-items-center rounded-lg transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100"
+                style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-fg)" }}
+                title="send (Enter)"
+              >{I.send}</button>
+            )}
+          </div>
+        </div>
       </div>
       <p class="sr-only">Enter envia, Shift+Enter quebra linha</p>
     </div>

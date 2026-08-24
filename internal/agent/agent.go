@@ -59,6 +59,15 @@ type ModeDef struct {
 	Description string `json:"description,omitempty"`
 }
 
+// Controls is the composer selection sent with a message (ADR-0006):
+// which model/thinking variant/mode the turn should run with. Empty
+// fields mean "keep the previous value" — it is per-session state.
+type Controls struct {
+	Model    string `json:"model,omitempty"`
+	Thinking string `json:"thinking,omitempty"`
+	Mode     string `json:"mode,omitempty"`
+}
+
 // SelectOption is one variant inside ModelDef.ThinkingOptions.
 type SelectOption struct {
 	ID        string `json:"id"`
@@ -179,4 +188,30 @@ func (r *Registry) List() []Adapter {
 		out = append(out, r.m[id])
 	}
 	return out
+}
+
+
+// DefaultCaps returns the composer surface an agent offers even before
+// its process first spawns (the UI must show controls immediately).
+// Dynamic "capabilities" events override these once they arrive.
+func DefaultCaps(agentID string) *Capabilities {
+	switch agentID {
+	case "claude":
+		think := []SelectOption{{ID: "off", Label: "Standard"}, {ID: "on", Label: "Extended thinking"}}
+		return &Capabilities{
+			Models: []ModelDef{
+				{ID: "sonnet", Label: "Sonnet", IsDefault: true, ThinkingOptions: think},
+				{ID: "opus", Label: "Opus", ThinkingOptions: think},
+				{ID: "haiku", Label: "Haiku"},
+			},
+			Modes: []ModeDef{
+				{ID: "manual", Label: "Ask before edits", Description: "Every tool call asks (default)"},
+				{ID: "acceptEdits", Label: "Auto-accept edits", Description: "File edits apply without asking"},
+				{ID: "plan", Label: "Plan only", Description: "Reads and research, no changes"},
+				{ID: "bypassPermissions", Label: "Full access", Description: "No permission prompts at all"},
+			},
+		}
+	default:
+		return nil // unknown surface until the agent reports one
+	}
 }

@@ -72,6 +72,9 @@ export async function query({ prompt, options }) {
       message: { role: "assistant", content: [{ type: "tool_use", name: "Bash", input: { command: "echo hi > /tmp/agentdeck-sdk-fake.txt" } }] },
     });
     text = "File written";
+  } else if (low.includes("which model")) {
+    // ADR-0006 proof: reflects the model option the shim actually passed
+    text = options?.model ? "model: " + options.model : "model: default";
   } else {
     text = "echo: " + prompt;
   }

@@ -26,8 +26,11 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
     setTimeout(() => setToast(null), 4000);
   }, []);
 
+  const [caps, setCaps] = useState(null);
+
   useEffect(() => {
     setMessages(null);
+    setCaps(null);
     api.messages(sid).then(setMessages).catch(() => setMessages([]));
     esRef.current?.close();
     const es = openEvents(sid, (ev) => {
@@ -41,6 +44,8 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
         setStream((s) => ({ text: (s?.text || "") + ev.content, tools: s?.tools || [] }));
       } else if (ev.type === "tool") {
         setStream((s) => ({ text: s?.text || "", tools: [...(s?.tools || []), { name: ev.name, state: ev.state, detail: ev.detail }] }));
+      } else if (ev.type === "capabilities") {
+        setCaps({ models: ev.models || [], modes: ev.modes || [] });
       } else if (ev.type === "message_end") {
         api.messages(sid).then(setMessages).catch(() => {});
         setStream(null);
@@ -63,8 +68,8 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
     setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
   };
 
-  const send = (text) => {
-    api.send(sid, text)
+  const send = (text, controls) => {
+    api.send(sid, text, controls)
       .then((res) => {
         setMessages((m) => [...(m || []), { role: "user", content: text, meta: res.queued ? { queued: true } : null, id: Date.now() }]);
         if (res.queued) setQueuedCount((q) => q + 1);
@@ -240,7 +245,7 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
         </button>
       )}
 
-      <Composer running={running} onSend={send} onStop={() => api.stop(sid)} sessionId={sid} />
+      <Composer running={running} onSend={send} onStop={() => api.stop(sid)} sessionId={sid} agentId={session.agent} caps={caps} />
 
       {toast && (
         <div class="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-lg px-4 py-2.5 text-sm shadow-xl surface"

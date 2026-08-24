@@ -43,6 +43,16 @@ for i in $(seq 1 40); do
 done
 [ "$OUT" = "OK" ] || fail "live turn (got: $OUT)"
 
+# 2b. composer controls (ADR-0006): model must reach the SDK options
+curl -sf -X POST "$BASE/api/sessions/$SID/messages" -H 'Content-Type: application/json' \
+  -d '{"text":"Which model am I?","controls":{"model":"opus","thinking":"","mode":""}}' > /dev/null
+for i in $(seq 1 40); do
+  OUT=$(curl -sf "$BASE/api/sessions/$SID/messages" | python3 -c 'import json,sys;ms=json.load(sys.stdin);print(ms[-1]["content"] if ms and ms[-1]["role"]=="assistant" else "")')
+  [ "$OUT" = "model: opus" ] && break
+  sleep 0.25
+done
+[ "$OUT" = "model: opus" ] || fail "composer controls -> SDK options (got: $OUT)"
+
 # 3. memory in the same process
 curl -sf -X POST "$BASE/api/sessions/$SID/messages" -H 'Content-Type: application/json' \
   -d '{"text":"What do you remember?"}' > /dev/null
