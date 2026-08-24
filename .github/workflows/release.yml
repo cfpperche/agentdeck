@@ -36,17 +36,13 @@ jobs:
         run: |
           mkdir -p dist
           LDFLAGS="-s -w -X main.Version=${VERSION#v}"
-          while read -r GOOS GOARCH EXT; do
+          # "os:arch[:ext]" tokens — ext empty means no suffix
+          for t in linux:amd64: linux:arm64: darwin:amd64: darwin:arm64: windows:amd64:.exe; do
+            IFS=: read -r GOOS GOARCH EXT <<<"$t"
             GOOS="$GOOS" GOARCH="$GOARCH" \
               go build -trimpath -ldflags "$LDFLAGS" \
               -o "dist/agentdeck-${GOOS}-${GOARCH}${EXT}" .
-          done <<'TARGETS'
-linux amd64
-linux arm64
-darwin amd64
-darwin arm64
-windows amd64 .exe
-TARGETS
+          done
           cd dist && sha256sum * > SHA256SUMS
 
       - name: Extract release notes from CHANGELOG.md
