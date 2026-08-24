@@ -6,6 +6,8 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-08-24
+
 ### Added
 - **Releases + installer**: tag-push workflow cross-compiles
   linux/darwin/windows (amd64+arm64) with embedded UI and publishes
