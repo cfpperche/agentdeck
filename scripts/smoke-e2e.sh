@@ -9,9 +9,14 @@ DATA=$(mktemp -d); PORT=8488
 cleanup() { kill "$SRV_PID" 2>/dev/null || true; rm -rf "$DATA"; }
 trap cleanup EXIT
 
+# CI machines have no agent CLIs: inject fakes via the env-override
+# mechanism (AGENTDECK_BIN_<id>) — same production code path.
+FAKES="$PWD/tests/fakes"
 AGENTDECK_DATA="$DATA" AGENTDECK_PORT="$PORT" AGENTDECK_INSECURE=1 \
   AGENTDECK_SDK_SHIM="$PWD/agent-sdk-shim/shim.mjs" \
   AGENTDECK_SDK_FAKE=1 FAKE_ASK=1 \
+  AGENTDECK_BIN_CLAUDE="$FAKES/fake-claude" \
+  AGENTDECK_BIN_PI="$FAKES/fake-pi" \
   ./bin/agentdeck > "$DATA/server.log" 2>&1 &
 SRV_PID=$!
 

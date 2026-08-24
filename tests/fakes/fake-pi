@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# fake-pi — one-shot double for the pi adapter (registry bootstrap in CI).
+cat <<'OUT'
+{"type":"session","version":3,"id":"fake-pi-session","cwd":"/tmp"}
+{"type":"message_update","assistantMessageEvent":{"type":"text_delta","delta":"OK"}}
+{"type":"agent_end","messages":[{"role":"assistant","content":[{"type":"text","text":"OK"}]}]}
+OUT
