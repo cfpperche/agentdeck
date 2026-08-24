@@ -9,11 +9,12 @@ import (
 // The curated catalogs must map composer controls to REAL flags
 // verified against each CLI's --help on 2026-08-24.
 func TestApplyControls(t *testing.T) {
-	reg := NewRegistry(EnvWhich(nil))
+	// CI has no agent CLIs: build adapters straight from the specs with
+	// a dummy bin path — we only exercise ApplyControls, not exec.
 	find := func(id string) Adapter {
-		for _, a := range reg.List() {
-			if a.ID == id {
-				return a
+		for _, sp := range adapterSpecs {
+			if sp.bin == id {
+				return sp.build(id)
 			}
 		}
 		t.Fatalf("agent %q not found", id)
