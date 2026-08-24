@@ -23,7 +23,8 @@ import (
 //go:embed all:web/dist
 var webFiles embed.FS
 
-// withWebUI serves the embedded SPA for non-/api paths (SPA fallback).
+// withWebUI serves the embedded SPA for non-API paths (SPA fallback).
+// /api/ and /ws/ go to the backend (the terminal dock is a WebSocket).
 func withWebUI(api http.Handler) http.Handler {
 	dist, err := fs.Sub(webFiles, "web/dist")
 	if err != nil {
@@ -32,7 +33,7 @@ func withWebUI(api http.Handler) http.Handler {
 	fileServer := http.FileServer(http.FS(dist))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/") {
+		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/ws/") {
 			api.ServeHTTP(w, r)
 			return
 		}

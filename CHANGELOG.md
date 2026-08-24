@@ -50,6 +50,12 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 - **Devices** (`/devices`): host vs other browsers (15s ping, 45s online).
 
 ### Fixed
+- **Terminal dock never showed the TUI**: two stacked bugs. (1)
+  `withWebUI` only forwarded `/api/`, so `/ws/term` was served as the
+  SPA HTML. (2) the attach PTY inherited the systemd unit's empty
+  TERM, and tmux exited with "terminal does not support clear".
+  `/ws/` now reaches the API mux; attach/new-session set
+  `TERM=xterm-256color`.
 - **Thinking buried in the model menu**: Grok (and any runtime with
   named models + thinking_options) hid Low/Medium/High/Extra high
   inside the model dropdown. Thinking is now a first-class strip

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
 	"os/exec"
 	"time"
 
@@ -51,6 +52,9 @@ func Bridge(tm *tmux.Manager) http.Handler {
 		defer ws.Close()
 
 		cmd := exec.Command("tmux", "attach-session", "-t", "="+name)
+		// systemd units have no TERM; tmux attach then dies with
+		// "terminal does not support clear" and the dock shows detached.
+		cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
 		ptyFile, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: 24, Cols: 80})
 		if err != nil {
 			_ = ws.WriteJSON(map[string]string{"type": "error", "message": err.Error()})

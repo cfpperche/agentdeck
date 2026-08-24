@@ -88,7 +88,8 @@ func (m *Manager) NewSession(ctx context.Context, name, cwd, command string, arg
 	if ok {
 		return nil // already running — attach only
 	}
-	argv := []string{"new-session", "-d", "-s", name, "-c", cwd, command}
+	argv := []string{"new-session", "-d", "-s", name, "-c", cwd,
+		"-e", "TERM=xterm-256color", "-e", "COLORTERM=truecolor", command}
 	argv = append(argv, args...)
 	_, err = m.run(ctx, argv...)
 	return err

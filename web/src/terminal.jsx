@@ -50,12 +50,21 @@ export function TerminalDock({ open, sessionName, title, onClose, height = 280 }
       sendResize();
       term.focus();
     };
+    let sawBytes = false;
     sock.onmessage = (ev) => {
-      if (typeof ev.data === "string") return;
+      if (typeof ev.data === "string") {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.type === "error") term.writeln(`\r\n\x1b[31m${msg.message}\x1b[0m`);
+        } catch { /* ignore */ }
+        return;
+      }
+      sawBytes = true;
       term.write(new Uint8Array(ev.data));
     };
     sock.onclose = () => {
-      term.writeln("\r\n\x1b[90m— detached —\x1b[0m");
+      if (!sawBytes) term.writeln("\r\n\x1b[31mcould not attach to the agent TUI\x1b[0m");
+      else term.writeln("\r\n\x1b[90m— detached —\x1b[0m");
     };
     term.onData((data) => {
       if (sock.readyState === WebSocket.OPEN) sock.send(new TextEncoder().encode(data));
@@ -114,7 +123,7 @@ export function TerminalDock({ open, sessionName, title, onClose, height = 280 }
           </button>
         </div>
       </div>
-      <div ref={hostRef} class="flex-1 min-h-0" />
+      <div ref={hostRef} class="flex-1 min-h-0 overflow-hidden" style={{ height: "100%" }} />
     </div>
   );
 }
