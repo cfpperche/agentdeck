@@ -41,8 +41,14 @@ func Build(cwd, sessionPath, agent, model string) Bar {
 	b := Bar{Cwd: formatCwd(cwd), Agent: agent, AutoCompact: agent == "pi" && piAutoCompact()}
 	b.Branch, b.Worktree, b.Dirty = gitInfo(cwd)
 	win := defaultWindow(agent, model)
-	if sessionPath != "" {
-		u := scanPiUsage(sessionPath)
+	var u piUsage
+	switch {
+	case sessionPath != "":
+		u = scanPiUsage(sessionPath)
+	case agent == "opencode":
+		u = scanOpenCode(cwd)
+	}
+	if u.lastTokens > 0 || u.input > 0 || u.output > 0 || u.cost > 0 {
 		b.Cost = u.cost
 		b.Input = u.input
 		b.Output = u.output
@@ -180,6 +186,8 @@ func defaultWindow(agent, model string) int {
 		return 272_000
 	case agent == "pi":
 		return 200_000
+	case agent == "opencode":
+		return 128_000
 	default:
 		return 0
 	}

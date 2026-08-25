@@ -7,6 +7,9 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Composer statusline — OpenCode**: scan
+  `~/.local/share/opencode/opencode.db` (`session.directory` = cwd)
+  for cost + tokens_input/output/cache. Same Bar as pi. Window 128k.
 - **Composer statusline — Claude**: SDK/CLI `result.usage`
   (`input_tokens`, cache read/create, `total_cost_usd`) becomes the
   same usage pulse. Shim emits it; parseClaude also reads usage

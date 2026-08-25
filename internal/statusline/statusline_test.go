@@ -1,11 +1,14 @@
 package statusline
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/cfpperche/agentdeck/internal/agent"
+
+	_ "modernc.org/sqlite"
 )
 
 func TestParseContextWindow(t *testing.T) {
@@ -71,6 +74,37 @@ func TestApplyLive(t *testing.T) {
 	}
 	if b.ContextPercent == nil || *b.ContextPercent < 1 {
 		t.Fatalf("pct %+v", b.ContextPercent)
+	}
+}
+
+func TestScanOpenCodeDB(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "opencode.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`CREATE TABLE session (
+		id TEXT, directory TEXT, title TEXT, cost REAL,
+		tokens_input INTEGER, tokens_output INTEGER, tokens_reasoning INTEGER,
+		tokens_cache_read INTEGER, tokens_cache_write INTEGER, time_updated INTEGER)`)
+	if err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	cwd := filepath.Join(dir, "ws")
+	_, err = db.Exec(`INSERT INTO session VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		"ses_1", cwd, "Greeting", 0.0, 1797, 21, 7, 7296, 0, 100)
+	db.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	u := scanOpenCodeDB(dbPath, cwd)
+	if u.name != "Greeting" || u.input != 1797 || u.output != 21 || u.cacheRead != 7296 {
+		t.Fatalf("%+v", u)
+	}
+	if u.lastTokens != 1797+21+7+7296 {
+		t.Fatalf("last %d", u.lastTokens)
 	}
 }
 
