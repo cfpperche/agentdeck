@@ -192,7 +192,7 @@ func parseClaude(line string) []Event {
 	case "capabilities":
 		if b, err := json.Marshal(ev); err == nil {
 			var caps Capabilities
-			if json.Unmarshal(b, &caps) == nil && (len(caps.Models) > 0 || len(caps.Modes) > 0) {
+			if json.Unmarshal(b, &caps) == nil && (len(caps.Models) > 0 || len(caps.Modes) > 0 || len(caps.Providers) > 0 || len(caps.Kinds) > 0) {
 				out = append(out, Event{Kind: KindCaps, Caps: &caps})
 			}
 		}

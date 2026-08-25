@@ -4,6 +4,7 @@ import { AgentIcon } from "./icons.jsx";
 import { ComposerStatus } from "./composerstatus.jsx";
 import { api } from "./api.js";
 import { filterSlash, parseAtToken, insertMention } from "./slash.js";
+import { Chip, Ico } from "./chips.jsx";
 
 /* ------------------------------------------------------------------ logo */
 export function Logo({ size = 20 }) {
@@ -288,31 +289,47 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
   // composer controls (ADR-0006): model/thinking/mode selected per agent,
   // persisted so the next session starts where you left off.
   const ctrlKey = agentId ? `agentdeck:controls:${agentId}` : null;
-  const [ctrl, setCtrl] = useState({ model: null, thinking: null, mode: null });
+  const [ctrl, setCtrl] = useState({ model: null, thinking: null, mode: null, provider: null, kind: null, op_mode: null });
   useEffect(() => {
     if (!ctrlKey || !caps) return;
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem(ctrlKey) || "{}"); } catch {}
-    const defModel = caps.models?.find((m) => m.is_default) || caps.models?.[0];
-    const model = caps.models?.some((m) => m.id === saved.model)
-      ? saved.model
-      : defModel?.id || null;
-    const m = caps.models?.find((x) => x.id === model);
+    const provs = caps.providers || [];
+    const provider = provs.some((p) => p.id === saved.provider)
+      ? saved.provider
+      : provs[0]?.id || null;
+    const pmodels = provider ? (provs.find((p) => p.id === provider)?.models || []) : (caps.models || []);
+    const defModel = pmodels.find((m) => m.is_default) || pmodels[0];
+    const model = pmodels.some((m) => m.id === saved.model) ? saved.model : defModel?.id || null;
+    const m = pmodels.find((x) => x.id === model) || caps.models?.find((x) => x.id === model);
     const think = m?.thinking_options?.some((t) => t.id === saved.thinking)
       ? saved.thinking
       : m?.default_thinking_option_id || m?.thinking_options?.find((t) => t.is_default)?.id || m?.thinking_options?.[0]?.id || null;
     const mode = caps.modes?.some((x) => x.id === saved.mode)
       ? saved.mode
       : caps.modes?.find((x) => x.id === "manual")?.id || caps.modes?.[0]?.id || null;
-    setCtrl({ model, thinking: think, mode });
+    const kind = caps.kinds?.some((k) => k.id === saved.kind)
+      ? saved.kind
+      : caps.kinds?.find((k) => k.is_default)?.id || caps.kinds?.[0]?.id || null;
+    const op_mode = caps.op_modes?.some((k) => k.id === saved.op_mode)
+      ? saved.op_mode
+      : caps.op_modes?.find((k) => k.is_default)?.id || caps.op_modes?.[0]?.id || null;
+    setCtrl({ model, thinking: think, mode, provider, kind, op_mode });
   }, [ctrlKey, caps]);
   const updCtrl = (patch) => {
     setCtrl((c) => {
-      // switching model resets an invalid thinking choice
       const next = { ...c, ...patch };
-      const m = caps?.models?.find((x) => x.id === next.model);
+      if (patch.provider && patch.provider !== c.provider) {
+        const p = caps?.providers?.find((x) => x.id === next.provider);
+        const keep = p?.models?.some((m) => m.id === next.model);
+        if (!keep) next.model = p?.models?.[0]?.id || null;
+      }
+      const pmodels = next.provider
+        ? (caps?.providers?.find((x) => x.id === next.provider)?.models || [])
+        : (caps?.models || []);
+      const m = pmodels.find((x) => x.id === next.model);
       if (next.thinking && !m?.thinking_options?.some((t) => t.id === next.thinking))
-        next.thinking = m?.default_thinking_option_id || null;
+        next.thinking = m?.default_thinking_option_id || m?.thinking_options?.[0]?.id || null;
       if (ctrlKey) localStorage.setItem(ctrlKey, JSON.stringify(next));
       return next;
     });
@@ -354,6 +371,9 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
       ...(ctrl.model ? { model: ctrl.model } : {}),
       ...(ctrl.thinking ? { thinking: ctrl.thinking } : {}),
       ...(ctrl.mode ? { mode: ctrl.mode } : {}),
+      ...(ctrl.provider ? { provider: ctrl.provider } : {}),
+      ...(ctrl.kind ? { kind: ctrl.kind } : {}),
+      ...(ctrl.op_mode ? { op_mode: ctrl.op_mode } : {}),
     };
     onSend(text.trim(), Object.keys(controls).length ? controls : undefined);
     setText("");
@@ -444,8 +464,19 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
           />
           {/* control strip INSIDE the box: chips left, send right */}
           <div class="flex items-center justify-between gap-2 pl-2 pr-2 pb-2 pt-0.5">
-            <div class="flex items-center gap-1.5 min-w-0">
-              {caps?.models?.filter((m) => m.id).length > 0 && ctrl.model && (() => {
+            <div class="flex items-center gap-1.5 min-w-0 flex-wrap">
+              {caps?.providers?.length > 0 && (
+                <Chip id="agent-provider" label="Provider" icon={Ico.provider} title="provider"
+                  value={ctrl.provider} options={caps.providers.map((p) => ({ id: p.id, label: p.label || p.id }))}
+                  onChange={(id) => updCtrl({ provider: id })} searchable />
+              )}
+              {caps?.providers?.length > 0 && (() => {
+                const p = caps.providers.find((x) => x.id === ctrl.provider) || caps.providers[0];
+                const opts = (p?.models || []).map((m) => ({ id: m.id, label: m.label || m.id }));
+                return <Chip id="agent-model" label="Model" icon={Ico.model} title="model"
+                  value={ctrl.model} options={opts} onChange={(id) => updCtrl({ model: id })} searchable />;
+              })()}
+              {caps?.models?.filter((m) => m.id).length > 0 && !caps?.providers?.length && ctrl.model && (() => {
                 const m = caps.models.find((x) => x.id === ctrl.model);
                 return (
                   <div class="relative">
@@ -485,7 +516,11 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
               {(() => {
                 // thinking is a first-class strip control (not buried in the
                 // model menu) — label in front of a compact selector
-                const m = caps?.models?.find((x) => x.id === ctrl.model)
+                const pmodels = ctrl.provider
+                  ? (caps?.providers?.find((x) => x.id === ctrl.provider)?.models || [])
+                  : (caps?.models || []);
+                const m = pmodels.find((x) => x.id === ctrl.model)
+                  || pmodels.find((x) => !x.id && x.thinking_options?.length)
                   || caps?.models?.find((x) => !x.id && x.thinking_options?.length)
                   || null;
                 const opts = m?.thinking_options || [];
@@ -524,7 +559,19 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
                   </div>
                 );
               })()}
-              {caps?.modes?.length > 1 && ctrl.mode && (() => {
+              {caps?.op_modes?.length > 0 && (
+                <Chip id="agent-opmode" label="Full" icon={Ico.mode} title="mode"
+                  value={ctrl.op_mode}
+                  options={caps.op_modes.map((o) => ({ id: o.id, label: o.label, hint: o.id === "readonly" ? "read, grep, find, ls" : "all tools" }))}
+                  onChange={(id) => updCtrl({ op_mode: id })} />
+              )}
+              {caps?.kinds?.length > 0 && (
+                <Chip id="agent-kind" label="Prompt" icon={Ico.kind} title="how the message is delivered"
+                  value={ctrl.kind}
+                  options={caps.kinds.map((k) => ({ id: k.id, label: k.label }))}
+                  onChange={(id) => updCtrl({ kind: id })} />
+              )}
+              {!caps?.op_modes?.length && caps?.modes?.length > 1 && ctrl.mode && (() => {
                 // paseo pattern: click cycles; colored dot carries the tier
                 const idx = caps.modes.findIndex((x) => x.id === ctrl.mode);
                 const cur = caps.modes[idx];

@@ -53,7 +53,11 @@ func main() {
 			if len(args) == 0 {
 				log.Fatal("__pirpc needs the pi command")
 			}
-			cmd := exec.Command(args[0], append([]string{"--mode", "rpc"}, args[1:]...)...)
+			piArgs := []string{"--mode", "rpc"}
+			if t := os.Getenv("AGENTDECK_PI_TOOLS"); t != "" {
+				piArgs = append(piArgs, "--tools", t)
+			}
+			cmd := exec.Command(args[0], append(piArgs, args[1:]...)...)
 			if home, herr := os.UserHomeDir(); herr == nil {
 				for _, dir := range []string{".bun/bin", ".local/bin", ".pi/agent/bin"} {
 					cmd.Env = append(cmd.Env, "PATH="+os.Getenv("PATH")+":"+filepath.Join(home, dir))

@@ -71,6 +71,9 @@ func (r *Runner) ensureLive(sid string, adapter agent.Adapter) (*liveProc, error
 	cmd := exec.CommandContext(context.Background(), argv[0], argv[1:]...)
 	cmd.Dir = cwd
 	cmd.Env = append(os.Environ(), "NO_COLOR=1")
+	if c := r.LastControls(sid); c != nil && c.OpMode == "readonly" {
+		cmd.Env = append(cmd.Env, "AGENTDECK_PI_TOOLS=read,grep,find,ls")
+	}
 	// SDK shim (ADR-0005): pass the native ref so a restarted shim resumes
 	if ss.AgentRef != "" && argv[0] == "node" {
 		cmd.Env = append(cmd.Env, "AGENTDECK_SDK_RESUME="+ss.AgentRef)
@@ -176,8 +179,7 @@ func (r *Runner) pumpLive(sid string, adapter agent.Adapter, lp *liveProc, pr *o
 				r.mu.Lock()
 				r.caps[sid] = ev.Caps
 				r.mu.Unlock()
-				r.broadcast(sid, StreamEvent{Type: "capabilities",
-					Models: ev.Caps.Models, Modes: ev.Caps.Modes})
+				r.broadcast(sid, capsEvent(ev.Caps))
 			case agent.KindFinal:
 				final = ev.Content
 			case agent.KindError:
@@ -226,13 +228,16 @@ func (r *Runner) sendLive(sid string, adapter agent.Adapter, text string) error 
 	r.mu.Lock()
 	c := r.ctrls[sid]
 	r.mu.Unlock()
-	if c != nil && (c.Model != "" || c.Thinking != "" || c.Mode != "") {
-		if err := lp.write(map[string]any{"type": "set_controls",
-			"model": c.Model, "thinking": c.Thinking, "permission_mode": c.Mode}); err != nil {
+	if c != nil && (c.Model != "" || c.Thinking != "" || c.Mode != "" || c.Provider != "" || c.Kind != "" || c.OpMode != "") {
+		if err := lp.write(map[string]any{
+			"type": "set_controls", "model": c.Model, "thinking": c.Thinking,
+			"permission_mode": c.Mode, "provider": c.Provider, "kind": c.Kind, "op_mode": c.OpMode,
+			"controls": c,
+		}); err != nil {
 			return err
 		}
 	}
-	return lp.write(map[string]any{
+	msg := map[string]any{
 		"type": "user",
 		"message": map[string]any{
 			"role": "user",
@@ -240,7 +245,11 @@ func (r *Runner) sendLive(sid string, adapter agent.Adapter, text string) error 
 				{"type": "text", "text": text},
 			},
 		},
-	})
+	}
+	if c != nil {
+		msg["controls"] = c
+	}
+	return lp.write(msg)
 }
 
 // Control answers a permission request (allow/deny, with optional

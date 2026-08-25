@@ -54,7 +54,10 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
       } else if (ev.type === "tool") {
         setStream((s) => ({ text: s?.text || "", tools: [...(s?.tools || []), { name: ev.name, state: ev.state, detail: ev.detail }] }));
       } else if (ev.type === "capabilities") {
-        setCaps({ models: ev.models || [], modes: ev.modes || [] });
+        setCaps({
+          models: ev.models || [], modes: ev.modes || [],
+          providers: ev.providers || [], kinds: ev.kinds || [], op_modes: ev.op_modes || [],
+        });
       } else if (ev.type === "message_end") {
         api.messages(sid).then(setMessages).catch(() => {});
         api.status(sid).then(setStatusBar).catch(() => {});

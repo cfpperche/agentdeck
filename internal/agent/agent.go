@@ -52,8 +52,18 @@ type Usage struct {
 // which models, reasoning variants and named modes it supports. The
 // shim/fake emit it once at startup; parsers pass it through.
 type Capabilities struct {
-	Models []ModelDef `json:"models"`
-	Modes  []ModeDef  `json:"modes"`
+	Models    []ModelDef      `json:"models"`
+	Modes     []ModeDef       `json:"modes"`
+	Providers []ProviderDef   `json:"providers,omitempty"`
+	Kinds     []SelectOption  `json:"kinds,omitempty"`
+	OpModes   []SelectOption  `json:"op_modes,omitempty"`
+}
+
+// ProviderDef is a pi-style catalog group (openrouter, anthropic, …).
+type ProviderDef struct {
+	ID     string     `json:"id"`
+	Label  string     `json:"label"`
+	Models []ModelDef `json:"models,omitempty"`
 }
 
 // ModelDef mirrors paseo's AgentModelDefinition: a selectable model
@@ -80,6 +90,9 @@ type Controls struct {
 	Model    string `json:"model,omitempty"`
 	Thinking string `json:"thinking,omitempty"`
 	Mode     string `json:"mode,omitempty"`
+	Provider string `json:"provider,omitempty"`
+	Kind     string `json:"kind,omitempty"`     // prompt | steer | follow_up (pi RPC)
+	OpMode   string `json:"op_mode,omitempty"` // full | readonly (pi --tools)
 }
 
 // SelectOption is one variant inside ModelDef.ThinkingOptions.
@@ -222,6 +235,23 @@ func (r *Registry) List() []Adapter {
 // DefaultCaps returns the composer surface an agent offers even before
 // its process first spawns (the UI must show controls immediately).
 // Dynamic "capabilities" events override these once they arrive.
+var (
+	piThink = []SelectOption{
+		{ID: "off", Label: "off"}, {ID: "minimal", Label: "minimal"},
+		{ID: "low", Label: "low"}, {ID: "medium", Label: "medium"},
+		{ID: "high", Label: "high"}, {ID: "xhigh", Label: "xhigh"}, {ID: "max", Label: "max"},
+	}
+	piKinds = []SelectOption{
+		{ID: "prompt", Label: "Prompt", IsDefault: true},
+		{ID: "steer", Label: "Steer"},
+		{ID: "follow_up", Label: "Follow-up"},
+	}
+	piOpModes = []SelectOption{
+		{ID: "full", Label: "Full", IsDefault: true},
+		{ID: "readonly", Label: "Read-only"},
+	}
+)
+
 func DefaultCaps(agentID string) *Capabilities {
 	switch agentID {
 	case "claude":
@@ -272,12 +302,10 @@ func DefaultCaps(agentID string) *Capabilities {
 		return &Capabilities{
 			Models: []ModelDef{
 				{ID: "", Label: "Default model", IsDefault: true,
-					ThinkingOptions: []SelectOption{
-						{ID: "off", Label: "Off"}, {ID: "minimal", Label: "Minimal"},
-						{ID: "low", Label: "Low"}, {ID: "medium", Label: "Medium"},
-						{ID: "high", Label: "High"}, {ID: "xhigh", Label: "Extra high"},
-					}},
+					ThinkingOptions: piThink},
 			},
+			Kinds:   piKinds,
+			OpModes: piOpModes,
 		}
 	case "opencode":
 		return &Capabilities{

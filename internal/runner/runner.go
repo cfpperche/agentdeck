@@ -63,8 +63,21 @@ type StreamEvent struct {
 	Count     int            `json:"count,omitempty"` // queue events
 
 	// composer surface (ADR-0006), carried by type:"capabilities"
-	Models []agent.ModelDef `json:"models,omitempty"`
-	Modes  []agent.ModeDef  `json:"modes,omitempty"`
+	Models    []agent.ModelDef     `json:"models,omitempty"`
+	Modes     []agent.ModeDef      `json:"modes,omitempty"`
+	Providers []agent.ProviderDef  `json:"providers,omitempty"`
+	Kinds     []agent.SelectOption `json:"kinds,omitempty"`
+	OpModes   []agent.SelectOption `json:"op_modes,omitempty"`
+}
+
+func capsEvent(c *agent.Capabilities) StreamEvent {
+	if c == nil {
+		return StreamEvent{Type: "capabilities"}
+	}
+	return StreamEvent{
+		Type: "capabilities", Models: c.Models, Modes: c.Modes,
+		Providers: c.Providers, Kinds: c.Kinds, OpModes: c.OpModes,
+	}
 }
 
 const taskTimeout = 10 * time.Minute

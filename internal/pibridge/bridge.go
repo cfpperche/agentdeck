@@ -137,10 +137,11 @@ func toInt(v any) (int64, bool) {
 type Bridge struct {
 	c *piConn
 
-	mu     sync.Mutex
-	models []map[string]any // live catalog entries
-	turn   strings.Builder
-	pending bool // a prompt is in flight
+	mu        sync.Mutex
+	models    []map[string]any // live catalog entries
+	providers []map[string]any
+	turn      strings.Builder
+	pending   bool // a prompt is in flight
 }
 
 func emit(v any) {
@@ -156,27 +157,69 @@ func (b *Bridge) snapshotModels() []map[string]any {
 	return out
 }
 
+func (b *Bridge) snapshotProviders() []map[string]any {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	out := make([]map[string]any, len(b.providers))
+	copy(out, b.providers)
+	return out
+}
+
+func thinkOpts(reasoning bool) []map[string]any {
+	levels := []string{"off"}
+	if reasoning {
+		levels = []string{"off", "minimal", "low", "medium", "high", "xhigh", "max"}
+	}
+	out := make([]map[string]any, 0, len(levels))
+	for _, l := range levels {
+		out = append(out, map[string]any{"id": l, "label": l})
+	}
+	return out
+}
+
 func (b *Bridge) ingestModels(data json.RawMessage) {
 	var d struct {
 		Models []struct {
-			ID       string `json:"id"`
-			Name     string `json:"name"`
-			Provider string `json:"provider"`
+			ID        string `json:"id"`
+			Name      string `json:"name"`
+			Provider  string `json:"provider"`
+			Reasoning bool   `json:"reasoning"`
 		} `json:"models"`
 	}
 	if json.Unmarshal(data, &d) != nil {
 		return
 	}
-	out := []map[string]any{}
+	by := map[string][]map[string]any{}
+	var order []string
+	flat := []map[string]any{}
 	for _, m := range d.Models {
-		full := m.ID
-		if m.Provider != "" && !strings.Contains(full, "/") {
-			full = m.Provider + "/" + full
+		label := m.Name
+		if label == "" {
+			label = m.ID
 		}
-		out = append(out, map[string]any{"id": full, "label": m.Name})
+		think := thinkOpts(m.Reasoning)
+		entry := map[string]any{"id": m.ID, "label": label, "thinking_options": think}
+		p := m.Provider
+		if p == "" {
+			p = "default"
+		}
+		if _, ok := by[p]; !ok {
+			order = append(order, p)
+		}
+		by[p] = append(by[p], entry)
+		full := m.ID
+		if p != "default" {
+			full = p + "/" + m.ID
+		}
+		flat = append(flat, map[string]any{"id": full, "label": label, "thinking_options": think})
+	}
+	provs := []map[string]any{}
+	for _, id := range order {
+		provs = append(provs, map[string]any{"id": id, "label": id, "models": by[id]})
 	}
 	b.mu.Lock()
-	b.models = out
+	b.models = flat
+	b.providers = provs
 	b.mu.Unlock()
 }
 
@@ -208,7 +251,19 @@ func Run(piOut io.Reader, piIn io.Writer) error {
 			got = true
 		}
 	}
-	emit(map[string]any{"type": "capabilities", "models": b.snapshotModels(), "modes": []any{}})
+	emit(map[string]any{
+		"type": "capabilities", "models": b.snapshotModels(), "providers": b.snapshotProviders(),
+		"kinds": []map[string]any{
+			{"id": "prompt", "label": "Prompt", "is_default": true},
+			{"id": "steer", "label": "Steer"},
+			{"id": "follow_up", "label": "Follow-up"},
+		},
+		"op_modes": []map[string]any{
+			{"id": "full", "label": "Full", "is_default": true},
+			{"id": "readonly", "label": "Read-only"},
+		},
+		"modes": []any{},
+	})
 	emit(map[string]any{"type": "system", "subtype": "init", "session_id": b.sessionRef()})
 
 	// forward pi events to the wire forever
@@ -285,9 +340,15 @@ func (b *Bridge) handleWire(lineStr string) {
 				Text string `json:"text"`
 			} `json:"content"`
 		} `json:"message"`
+		Model    string `json:"model"`
+		Thinking string `json:"thinking"`
+		Provider string `json:"provider"`
+		Kind     string `json:"kind"`
 		Controls struct {
 			Model    string `json:"model"`
 			Thinking string `json:"thinking"`
+			Provider string `json:"provider"`
+			Kind     string `json:"kind"`
 		} `json:"controls"`
 	}
 	if json.Unmarshal([]byte(lineStr), &in) != nil {
@@ -295,18 +356,24 @@ func (b *Bridge) handleWire(lineStr string) {
 	}
 	switch in.Type {
 	case "set_controls":
-		if in.Controls.Model != "" {
+		model := firstNonEmpty(in.Controls.Model, in.Model)
+		provider := firstNonEmpty(in.Controls.Provider, in.Provider)
+		thinking := firstNonEmpty(in.Controls.Thinking, in.Thinking)
+		if model != "" || provider != "" {
 			req := piline{"type": "set_model"}
-			if parts := strings.SplitN(in.Controls.Model, "/", 2); len(parts) == 2 {
+			if provider != "" {
+				req["provider"] = provider
+				req["modelId"] = model
+			} else if parts := strings.SplitN(model, "/", 2); len(parts) == 2 {
 				req["provider"] = parts[0]
 				req["modelId"] = parts[1]
 			} else {
-				req["modelId"] = parts[0]
+				req["modelId"] = model
 			}
 			waitReply(b.c, b.c.call(req))
 		}
-		if in.Controls.Thinking != "" {
-			waitReply(b.c, b.c.call(piline{"type": "set_thinking_level", "level": in.Controls.Thinking}))
+		if thinking != "" {
+			waitReply(b.c, b.c.call(piline{"type": "set_thinking_level", "level": thinking}))
 		}
 	case "user":
 		text := ""
@@ -315,12 +382,25 @@ func (b *Bridge) handleWire(lineStr string) {
 				text += c.Text
 			}
 		}
+		kind := firstNonEmpty(in.Controls.Kind, in.Kind, "prompt")
+		if kind != "steer" && kind != "follow_up" {
+			kind = "prompt"
+		}
 		// ack-only reply; real completion arrives as agent_end/settled
 		b.mu.Lock()
 		b.pending = true
 		b.mu.Unlock()
-		waitReply(b.c, b.c.call(piline{"type": "prompt", "message": text}))
+		waitReply(b.c, b.c.call(piline{"type": kind, "message": text}))
 	}
+}
+
+func firstNonEmpty(ss ...string) string {
+	for _, s := range ss {
+		if s != "" {
+			return s
+		}
+	}
+	return ""
 }
 
 // waitReply returns a channel delivering the reply line for id.

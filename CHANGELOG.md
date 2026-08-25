@@ -7,6 +7,10 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Pi composer chips** (PiCode parity): Provider, Model, Thinking,
+  Full/Read-only, Prompt/Steer/Follow-up. Live catalog from
+  `get_available_models` grouped by provider. Kind is the RPC command;
+  Read-only is `--tools read,grep,find,ls` on the next spawn.
 - **Conversation rail** (PiCode): when a chat overflows, the native
   scrollbar is replaced by ticks (You vs runtime label) + chevrons +
   hover preview. Shared Chat surface, so all five runtimes get it.

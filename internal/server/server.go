@@ -526,8 +526,10 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	// composer surface replay (ADR-0006): a page reload must still show
 	// the model/mode controls without waiting for the next agent spawn.
 	if caps := s.Runner.Caps(id); caps != nil {
-		if b, err := json.Marshal(runner.StreamEvent{Type: "capabilities",
-			Models: caps.Models, Modes: caps.Modes}); err == nil {
+		ev := runner.StreamEvent{Type: "capabilities",
+			Models: caps.Models, Modes: caps.Modes,
+			Providers: caps.Providers, Kinds: caps.Kinds, OpModes: caps.OpModes}
+		if b, err := json.Marshal(ev); err == nil {
 			w.Write([]byte("data: " + string(b) + "\n\n"))
 		}
 	}
