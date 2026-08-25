@@ -17,6 +17,9 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
   Mobile keeps the native bar.
 
 ### Changed
+- **Chat | Terminal toggle** (no split dock): opening Terminal fills
+  the column; Chat returns to the conversation. Exclusive views — the
+  squeezed dock + empty chat overlay is gone. ADR-0008 amended.
 - **Composer focus**: no blue `:focus-visible` ring on the textarea;
   the card border just darkens (`:focus-within`), like PiCode.
 - **Composer overlays the conversation** (PiCode): the message list

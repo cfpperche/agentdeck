@@ -29,9 +29,8 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
   }, []);
 
   const [caps, setCaps] = useState(null);
-  const [surface, setSurface] = useState("chat"); // chat | terminal
-  const [dockOpen, setDockOpen] = useState(false);
-  const [termMax, setTermMax] = useState(false);
+  const [surface, setSurface] = useState("chat"); // chat | terminal (process owner)
+  const [view, setView] = useState("chat"); // exclusive UI: chat | term
   const [tmuxName, setTmuxName] = useState("");
   const [statusBar, setStatusBar] = useState(null);
 
@@ -121,7 +120,7 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
 
   return (
     <div class="flex-1 flex flex-col min-w-0 relative" style={{ background: "var(--bg-canvas)" }}>
-      {!termMax && <>
+      {view === "chat" && <>
       {/* slim state toolbar — renders ONLY when it has content:
           cwd badge, status, queue or stop (desktop), or on mobile where
           it hosts the menu button. Otherwise no ghost band under the tab
@@ -177,10 +176,6 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
         <div class="conv-col">
           {messages === null ? (
             <p class="text-center text-sm py-16" style={{ color: "var(--text-3)" }}>loading…</p>
-          ) : surface === "terminal" && !stream ? (
-            <p class="text-center text-sm py-16" style={{ color: "var(--text-3)" }}>
-              Agent is running in the terminal. Send a message to pair with chat, or use the Terminal button to show it.
-            </p>
           ) : messages.length === 0 && !stream ? (
             <p class="text-center text-sm py-16" style={{ color: "var(--text-3)" }}>
               send the first message to <span style={{ color: "var(--text-1)" }}>{agentMeta?.label}</span>
@@ -287,15 +282,16 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
         agentId={session.agent}
         caps={caps}
         statusBar={statusBar}
-        termOpen={dockOpen}
+        termOpen={view === "term" || surface === "terminal"}
         cwd={session.cwd}
         onToggleTerm={async () => {
-          if (dockOpen) { setDockOpen(false); setTermMax(false); return; }
           try {
-            const info = await api.openTerminal(sid);
-            setTmuxName(info.session || "");
+            if (!tmuxName) {
+              const info = await api.openTerminal(sid);
+              setTmuxName(info.session || "");
+            }
             setSurface("terminal");
-            setDockOpen(true);
+            setView("term");
           } catch (e) {
             showToast(e.detail || e.error || "terminal unavailable");
           }
@@ -304,14 +300,15 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
       </div>
       </div>
       </>}
-      <TerminalDock
-        open={dockOpen}
-        sessionName={tmuxName}
-        title={session.title || agentMeta?.label || "agent"}
-        maximized={termMax}
-        onToggleMax={() => setTermMax((m) => !m)}
-        onClose={() => { setDockOpen(false); setTermMax(false); }}
-      />
+      {view === "term" && (
+        <TerminalDock
+          open
+          sessionName={tmuxName}
+          title={session.title || agentMeta?.label || "agent"}
+          onShowChat={() => setView("chat")}
+          onClose={() => setView("chat")}
+        />
+      )}
 
       {toast && (
         <div class="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-lg px-4 py-2.5 text-sm shadow-xl surface"

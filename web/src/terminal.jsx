@@ -10,7 +10,7 @@ function wsURL(path) {
 
 // TerminalDock (ADR-0006 + 0008): closed by default, real header,
 // × hides (detach). The tmux session keeps running.
-export function TerminalDock({ open, sessionName, title, onClose, maximized, onToggleMax, height = 280 }) {
+export function TerminalDock({ open, sessionName, title, onClose, onShowChat }) {
   const hostRef = useRef(null);
   const termRef = useRef(null);
 
@@ -84,18 +84,11 @@ export function TerminalDock({ open, sessionName, title, onClose, maximized, onT
     if (open && termRef.current?.fit) {
       requestAnimationFrame(() => termRef.current.fit.fit());
     }
-  }, [open, maximized, height]);
+  }, [open]);
 
   if (!open) return null;
   return (
-    <div
-      class={`flex flex-col ${maximized ? "flex-1 min-h-0" : "shrink-0"}`}
-      style={{
-        height: maximized ? undefined : height,
-        borderTop: maximized ? "none" : "1px solid var(--border)",
-        background: "#0e0e11",
-      }}
-    >
+    <div class="flex-1 min-h-0 flex flex-col" style={{ background: "#0e0e11" }}>
       <div class="flex items-center h-8 px-3 shrink-0 gap-2"
         style={{ background: "var(--bg-panel)", borderBottom: "1px solid var(--border-soft)" }}>
         <span class="text-[12px] font-medium truncate" style={{ color: "var(--text-2)" }}>
@@ -103,20 +96,17 @@ export function TerminalDock({ open, sessionName, title, onClose, maximized, onT
         </span>
         <div class="ml-auto flex items-center gap-1">
           <button
-            onClick={onToggleMax}
-            class="h-6 w-6 grid place-items-center rounded"
-            style={{ color: maximized ? "var(--text-1)" : "var(--text-3)" }}
-            title={maximized ? "restore" : "maximize"}
-            aria-label={maximized ? "restore" : "maximize"}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
-          </button>
+            onClick={onShowChat || onClose}
+            class="h-6 px-2 rounded text-[11px] font-medium"
+            style={{ color: "var(--text-2)", border: "1px solid var(--border)" }}
+            title="show chat"
+          >Chat</button>
           <button
             onClick={onClose}
             class="h-6 w-6 grid place-items-center rounded"
             style={{ color: "var(--text-3)" }}
-            title="hide terminal"
-            aria-label="close terminal"
+            title="back to chat"
+            aria-label="back to chat"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>

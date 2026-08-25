@@ -23,8 +23,9 @@ decides how the TUI process relates to the protocol process.
    the browser holds a short-lived `tmux attach` PTY over WebSocket.
    Closing the dock or the tab detaches; the TUI keeps running until
    chat takes over or the session is deleted.
-3. **Presentation is still ADR-0006:** closed by default, real header
-   (`Terminal · <title>` + maximize + close), never an X on a splitter.
+3. **One surface at a time.** Chat and Terminal are exclusive views
+   (a toggle), not a split dock. The split squeezed the TUI and hid
+   the chat. Header is `Terminal · <title>` + Chat + close (detach).
 4. **Any runtime with a TUI binary can use the same path.** First
    ship is pi (`pi` with no `--mode rpc`); the argv is per-adapter
    (`Adapter.BuildTUI`).
