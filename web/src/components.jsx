@@ -385,22 +385,12 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
       : null;
 
   return (
-    <div
-      class="shrink-0 surface"
-      style={{
-        background: "var(--bg-panel)",
-        borderTop: "1px solid var(--border-soft)",
-        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
-        paddingTop: 12,
-        paddingLeft: 12,
-        paddingRight: 12,
-      }}
-    >
+    <div class="w-full" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       <div class="max-w-3xl mx-auto">
         {/* one bordered block owns everything (Cursor shape): textarea on
             top, control strip inside the same box */}
         <div
-          class="rounded-xl flex flex-col relative"
+          class="rounded-xl flex flex-col relative composer-card-shadow"
           style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
           onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
           onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}

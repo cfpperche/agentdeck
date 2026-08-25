@@ -6,6 +6,12 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 
 ## [Unreleased]
 
+### Changed
+- **Composer overlays the conversation** (PiCode): the message list
+  is `inset: 0` so the scrollbar runs to the bottom edge; the
+  composer floats on top (`right: 12px` leaves the gutter free) with
+  a fade shadow. Last messages pad 220px so they can scroll above it.
+
 ### Added
 - **Composer Fase D (slash + @file)**: `/` palette (`/new` `/term`
   `/stop` `/settings` `/devices` `/system`) and `@` fuzzy file picker

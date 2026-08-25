@@ -227,3 +227,35 @@ button { cursor: pointer; }
 .slash-item.active { background: var(--bg-hover); color: var(--text-1); }
 .slash-label { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
 .slash-hint { font-size: 11.5px; color: var(--text-3); }
+
+/* PiCode overlay composer: conversation fills the column (scrollbar to
+   the bottom edge); composer floats on top and leaves the gutter free. */
+.chat-body { flex: 1; min-height: 0; position: relative; }
+.conversation {
+  position: absolute; inset: 0;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+  display: flex; flex-direction: column;
+}
+.conversation::-webkit-scrollbar { width: 10px; }
+.conversation::-webkit-scrollbar-thumb {
+  background: var(--border-strong); border-radius: 99px;
+}
+.conv-col {
+  width: 100%; max-width: 48rem; margin: 0 auto;
+  padding: 24px 16px 220px;
+  flex: 1; display: flex; flex-direction: column; justify-content: flex-end;
+}
+.composer-wrap {
+  position: absolute; left: 0; right: 12px; bottom: 0; z-index: 4;
+  padding: 12px 20px 14px;
+  background: none;
+  pointer-events: none;
+  display: flex; flex-direction: column; align-items: center;
+}
+.composer-wrap > * { pointer-events: auto; width: 100%; max-width: 48rem; }
+.composer-card-shadow {
+  box-shadow: 0 -16px 28px color-mix(in srgb, var(--bg-canvas) 80%, transparent);
+}

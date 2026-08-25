@@ -167,9 +167,10 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
           </header>
         );
       })()}
-      {/* messages */}
-      <div ref={listRef} onScroll={onScroll} class="flex-1 overflow-y-auto" style={{ display: "flex", flexDirection: "column" }}>
-        <div class="w-full max-w-3xl mx-auto px-4 md:px-6 py-6 flex-1 flex flex-col justify-end">
+      <div class="chat-body">
+      {/* messages fill the column so the scrollbar runs under the composer */}
+      <div ref={listRef} onScroll={onScroll} class="conversation">
+        <div class="conv-col">
           {messages === null ? (
             <p class="text-center text-sm py-16" style={{ color: "var(--text-3)" }}>loading…</p>
           ) : surface === "terminal" && !stream ? (
@@ -207,11 +208,22 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
         </div>
       </div>
 
+      {/* jump to bottom */}
+      {!atBottom && messages?.length > 0 && (
+        <button onClick={() => { setAtBottom(true); listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }); }}
+          class="absolute bottom-28 right-5 z-10 h-10 w-10 grid place-items-center rounded-full shadow-xl surface"
+          style={{ background: "var(--bg-raised)", border: "1px solid var(--border)", color: "var(--text-2)" }}
+          aria-label="jump to bottom">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14m-6-6 6 6 6-6"/></svg>
+        </button>
+      )}
+
+      <div class="composer-wrap">
       {/* permission banner (queue + edit) */}
       {permissions.length > 0 && (() => {
         const p = permissions[0];
         return (
-          <div class="px-4 md:px-6 pb-2 max-w-3xl mx-auto w-full">
+          <div class="pb-2 w-full">
             <div class="rounded-xl border px-4 py-3 flex flex-col gap-3"
               style={{ background: "var(--warn-soft)", borderColor: "var(--warn-border)" }}>
               <div class="flex items-start gap-3">
@@ -256,16 +268,6 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
         );
       })()}
 
-      {/* jump to bottom */}
-      {!atBottom && messages?.length > 0 && (
-        <button onClick={() => { setAtBottom(true); listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }); }}
-          class="absolute bottom-28 right-5 z-10 h-10 w-10 grid place-items-center rounded-full shadow-xl surface"
-          style={{ background: "var(--bg-raised)", border: "1px solid var(--border)", color: "var(--text-2)" }}
-          aria-label="jump to bottom">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14m-6-6 6 6 6-6"/></svg>
-        </button>
-      )}
-
       <Composer
         running={running}
         onSend={send}
@@ -288,6 +290,8 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
           }
         }}
       />
+      </div>
+      </div>
       </>}
       <TerminalDock
         open={dockOpen}
