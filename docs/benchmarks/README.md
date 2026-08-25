@@ -22,3 +22,4 @@ For Cursor, architecture claims in studies must be marked as inference.
 - [2026-08-24 — PiCode terminal dock](2026-08-24-picode-terminal-dock.md)
 - [2026-08-24 — PiCode composer statusline](2026-08-24-picode-statusline.md)
 - [2026-08-24 — Composer @-mentions and slash](2026-08-24-composer-mentions-slash.md)
+- [2026-08-24 — PiCode conversation rail](2026-08-24-picode-conversation-rail.md)

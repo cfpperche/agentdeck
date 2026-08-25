@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { api, openEvents } from "./api.js";
 import { Message, Composer, ToolChip } from "./components.jsx";
 import { TerminalDock } from "./terminal.jsx";
+import { ConversationRail } from "./conversationrail.jsx";
 
 // Chat: one live session view (messages + SSE + composer + permission
 // banner). Designed to stay MOUNTED while hidden (tab switching) so
@@ -185,7 +186,7 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
             <>
               {messages.map((m) => <Message key={m.id || m.created_at} m={m} />)}
               {stream && (
-                <div class="flex justify-start mb-5">
+                <div data-rail="msg-stream" class="flex justify-start mb-5">
                   <div class="max-w-[90%] md:max-w-[75%] rounded-2xl rounded-bl-md px-4 py-3"
                     style={{ background: "var(--bg-card)", border: "1px solid var(--border-soft)" }}>
                     {stream.text ? (
@@ -207,6 +208,13 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
           )}
         </div>
       </div>
+
+      <ConversationRail
+        messages={messages}
+        agentLabel={agentMeta?.label}
+        streamText={stream?.text}
+        convRef={listRef}
+      />
 
       {/* jump to bottom */}
       {!atBottom && messages?.length > 0 && (

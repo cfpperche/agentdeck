@@ -6,6 +6,12 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 
 ## [Unreleased]
 
+### Added
+- **Conversation rail** (PiCode): when a chat overflows, the native
+  scrollbar is replaced by ticks (You vs runtime label) + chevrons +
+  hover preview. Shared Chat surface, so all five runtimes get it.
+  Mobile keeps the native bar.
+
 ### Changed
 - **Composer overlays the conversation** (PiCode): the message list
   is `inset: 0` so the scrollbar runs to the bottom edge; the

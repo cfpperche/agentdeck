@@ -242,8 +242,9 @@ export function ToolChip({ tool }) {
 export function Message({ m }) {
   const isUser = m.role === "user";
   const tools = m.meta?.tools || [];
+  const railId = "msg-" + (m.id != null ? m.id : m.created_at || "");
   return (
-    <div class={`flex ${isUser ? "justify-end" : "justify-start"} mb-5`}>
+    <div data-rail={railId} class={`flex ${isUser ? "justify-end" : "justify-start"} mb-5`}>
       <div class={`max-w-[90%] md:max-w-[75%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1.5`}>
         {isUser ? (
           <div class="flex flex-col items-end gap-1">
