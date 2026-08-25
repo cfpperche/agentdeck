@@ -391,10 +391,8 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
         {/* one bordered block owns everything (Cursor shape): textarea on
             top, control strip inside the same box */}
         <div
-          class="rounded-xl flex flex-col relative composer-card-shadow"
-          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
-          onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+          class="rounded-xl flex flex-col relative composer-card composer-card-shadow"
+          style={{ background: "var(--bg-card)" }}
         >
           {picker && (
             <ul class="slash-menu" role="listbox">

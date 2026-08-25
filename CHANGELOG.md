@@ -13,6 +13,8 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
   Mobile keeps the native bar.
 
 ### Changed
+- **Composer focus**: no blue `:focus-visible` ring on the textarea;
+  the card border just darkens (`:focus-within`), like PiCode.
 - **Composer overlays the conversation** (PiCode): the message list
   is `inset: 0` so the scrollbar runs to the bottom edge; the
   composer floats on top (`right: 12px` leaves the gutter free) with

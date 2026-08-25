@@ -308,3 +308,13 @@ button { cursor: pointer; }
 .composer-card-shadow {
   box-shadow: 0 -16px 28px color-mix(in srgb, var(--bg-canvas) 80%, transparent);
 }
+.composer-card {
+  border: 1px solid var(--border);
+}
+.composer-card:focus-within {
+  border-color: var(--border-strong);
+}
+.composer-card textarea:focus,
+.composer-card textarea:focus-visible {
+  outline: none;
+}
