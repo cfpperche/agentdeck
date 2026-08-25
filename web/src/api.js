@@ -37,8 +37,12 @@ export const api = {
   clearQueue: (id) =>
     fetch(`/api/sessions/${id}/queue/cancel`, { method: "POST" }).then(json),
   terminal: (id) => fetch(`/api/sessions/${id}/terminal`).then(json),
-  openTerminal: (id) =>
-    fetch(`/api/sessions/${id}/terminal`, { method: "POST" }).then(json),
+  openTerminal: (id, controls) =>
+    fetch(`/api/sessions/${id}/terminal`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(controls ? { controls } : {}),
+    }).then(json),
   closeTerminal: (id) =>
     fetch(`/api/sessions/${id}/terminal`, { method: "DELETE" }).then(json),
   status: (id) => fetch(`/api/sessions/${id}/status`).then(json),

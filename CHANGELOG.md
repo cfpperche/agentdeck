@@ -17,6 +17,10 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
   Mobile keeps the native bar.
 
 ### Changed
+- **TUI inherits composer chips**: opening Terminal POSTs
+  model/thinking/mode (and pi provider/op_mode) and the TUI argv
+  gets `--model haiku --permission-mode …` instead of the CLI default
+  (Opus 5 / auto).
 - **TUI resumes the protocol session**: `claude --resume <id>`,
   `pi --session <jsonl>`, `codex resume <id>`. Opening Terminal no
   longer starts a blank splash next to an existing chat.

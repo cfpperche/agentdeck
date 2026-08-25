@@ -284,12 +284,10 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
         statusBar={statusBar}
         termOpen={view === "term" || surface === "terminal"}
         cwd={session.cwd}
-        onToggleTerm={async () => {
+        onToggleTerm={async (controls) => {
           try {
-            if (!tmuxName) {
-              const info = await api.openTerminal(sid);
-              setTmuxName(info.session || "");
-            }
+            const info = await api.openTerminal(sid, controls);
+            setTmuxName(info.session || "");
             setSurface("terminal");
             setView("term");
           } catch (e) {

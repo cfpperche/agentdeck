@@ -186,6 +186,17 @@ func (r *Runner) LastControls(sid string) *agent.Controls {
 	return r.ctrls[sid]
 }
 
+// SetControls records the composer selection (used when opening the TUI
+// before any chat turn has been sent).
+func (r *Runner) SetControls(sid string, c *agent.Controls) {
+	if c == nil {
+		return
+	}
+	r.mu.Lock()
+	r.ctrls[sid] = c
+	r.mu.Unlock()
+}
+
 func (r *Runner) Caps(sid string) *agent.Capabilities {
 	r.mu.Lock()
 	c := r.caps[sid]

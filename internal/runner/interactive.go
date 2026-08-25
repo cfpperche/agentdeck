@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/cfpperche/agentdeck/internal/agent"
 	"github.com/cfpperche/agentdeck/internal/statusline"
 	"github.com/cfpperche/agentdeck/internal/tmux"
 )
@@ -34,7 +35,7 @@ func (r *Runner) TUIAvailable() bool { return r.tmuxMgr().Available() }
 
 // StartTUI stops the protocol process (exclusive) and starts the
 // agent's interactive TUI in tmux. Idempotent if already running.
-func (r *Runner) StartTUI(sid string) (string, error) {
+func (r *Runner) StartTUI(sid string, c *agent.Controls) (string, error) {
 	ss, err := r.Store.GetSession(sid)
 	if err != nil || ss == nil {
 		return "", os.ErrNotExist
@@ -47,13 +48,13 @@ func (r *Runner) StartTUI(sid string) (string, error) {
 	if !tm.Available() {
 		return "", fmt.Errorf("tmux not installed")
 	}
-	if name := r.TUIName(sid); name != "" {
-		return name, nil
-	}
+	r.SetControls(sid, c)
+	// recreate so composer chips (model/thinking/mode) land on argv
+	r.StopTUI(sid)
 	r.dropLive(sid)
 
 	name := tmux.SessionName(sid)
-	_ = tm.KillSession(context.Background(), name) // drop a stale attach from a previous boot
+	_ = tm.KillSession(context.Background(), name)
 	cwd := r.sessionDir(sid, ss.Cwd)
 	ref := ss.AgentRef
 	if ss.Agent == "pi" {
@@ -62,6 +63,7 @@ func (r *Runner) StartTUI(sid string) (string, error) {
 		}
 	}
 	argv := adapter.BuildTUI(ref)
+	argv = applyTUIControls(ss.Agent, argv, r.LastControls(sid))
 	if err := tm.NewSession(context.Background(), name, cwd, argv[0], argv[1:]...); err != nil {
 		return "", err
 	}
@@ -107,4 +109,60 @@ func (r *Runner) Surface(sid string) string {
 		return "terminal"
 	}
 	return "chat"
+}
+
+// applyTUIControls appends composer chips as TUI flags (no trailing
+// prompt to steal — unlike ApplyControls on the one-shot CLI).
+func applyTUIControls(agentID string, argv []string, c *agent.Controls) []string {
+	if c == nil {
+		return argv
+	}
+	switch agentID {
+	case "claude":
+		if c.Model != "" {
+			argv = append(argv, "--model", c.Model)
+		}
+		if c.Mode != "" {
+			argv = append(argv, "--permission-mode", c.Mode)
+		}
+		switch c.Thinking {
+		case "on":
+			argv = append(argv, "--effort", "high")
+		case "off":
+			argv = append(argv, "--effort", "low")
+		default:
+			if c.Thinking != "" {
+				argv = append(argv, "--effort", c.Thinking)
+			}
+		}
+	case "pi":
+		if c.Provider != "" {
+			argv = append(argv, "--provider", c.Provider)
+		}
+		if c.Model != "" {
+			argv = append(argv, "--model", c.Model)
+		}
+		if c.Thinking != "" {
+			argv = append(argv, "--thinking", c.Thinking)
+		}
+		if c.OpMode == "readonly" {
+			argv = append(argv, "--tools", "read,grep,find,ls")
+		}
+	case "codex":
+		if c.Model != "" {
+			argv = append(argv, "-m", c.Model)
+		}
+	case "grok":
+		if c.Model != "" {
+			argv = append(argv, "-m", c.Model)
+		}
+		if c.Thinking != "" && c.Thinking != "off" {
+			argv = append(argv, "--reasoning-effort", c.Thinking)
+		}
+	case "opencode":
+		if c.Model != "" {
+			argv = append(argv, "-m", c.Model)
+		}
+	}
+	return argv
 }

@@ -1,6 +1,10 @@
 package server
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/cfpperche/agentdeck/internal/agent"
+)
 
 func (s *Server) handleTermGet(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
@@ -13,7 +17,11 @@ func (s *Server) handleTermGet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleTermOpen(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	name, err := s.Runner.StartTUI(id)
+	var in struct {
+		Controls *agent.Controls `json:"controls"`
+	}
+	_ = readBody(r, &in)
+	name, err := s.Runner.StartTUI(id, in.Controls)
 	if err != nil {
 		writeErr(w, 409, err.Error())
 		return

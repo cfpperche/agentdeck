@@ -363,10 +363,7 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
     return () => { clearTimeout(t); ac.abort(); };
   }, [atTok?.query, cwd, !!atTok]);
 
-  const submit = () => {
-    // no `running` guard: while a turn is in flight the message QUEUES
-    // (steering, benchmark G3) — the server caps and 409s when full
-    if (!text.trim() || disabled) return;
+  const currentControls = () => {
     const controls = {
       ...(ctrl.model ? { model: ctrl.model } : {}),
       ...(ctrl.thinking ? { thinking: ctrl.thinking } : {}),
@@ -375,7 +372,14 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
       ...(ctrl.kind ? { kind: ctrl.kind } : {}),
       ...(ctrl.op_mode ? { op_mode: ctrl.op_mode } : {}),
     };
-    onSend(text.trim(), Object.keys(controls).length ? controls : undefined);
+    return Object.keys(controls).length ? controls : undefined;
+  };
+
+  const submit = () => {
+    // no `running` guard: while a turn is in flight the message QUEUES
+    // (steering, benchmark G3) — the server caps and 409s when full
+    if (!text.trim() || disabled) return;
+    onSend(text.trim(), currentControls());
     setText("");
     if (draftKey) localStorage.removeItem(draftKey);
   };
@@ -384,7 +388,7 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
     setText("");
     if (draftKey) localStorage.removeItem(draftKey);
     if (!cmd) return;
-    if (cmd.run === "term") { onToggleTerm?.(); return; }
+    if (cmd.run === "term") { onToggleTerm?.(currentControls()); return; }
     if (cmd.run === "stop") { onStop?.(); return; }
     dispatchEvent(new CustomEvent("agentdeck-slash", { detail: cmd }));
   };
@@ -591,7 +595,7 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
             <div class="flex items-center gap-1.5 shrink-0">
               {onToggleTerm && (
                 <button
-                  onClick={onToggleTerm}
+                  onClick={() => onToggleTerm(currentControls())}
                   class="h-7 px-2 rounded-lg text-[12px] font-medium transition-colors"
                   style={{
                     background: termOpen ? "var(--bg-hover)" : "transparent",
