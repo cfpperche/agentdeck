@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/cfpperche/agentdeck/internal/statusline"
 	"github.com/cfpperche/agentdeck/internal/tmux"
 )
 
@@ -46,11 +47,21 @@ func (r *Runner) StartTUI(sid string) (string, error) {
 	if !tm.Available() {
 		return "", fmt.Errorf("tmux not installed")
 	}
+	if name := r.TUIName(sid); name != "" {
+		return name, nil
+	}
 	r.dropLive(sid)
 
 	name := tmux.SessionName(sid)
+	_ = tm.KillSession(context.Background(), name) // drop a stale attach from a previous boot
 	cwd := r.sessionDir(sid, ss.Cwd)
-	argv := adapter.BuildTUI()
+	ref := ss.AgentRef
+	if ss.Agent == "pi" {
+		if p := statusline.LatestPiSession(cwd); p != "" {
+			ref = p
+		}
+	}
+	argv := adapter.BuildTUI(ref)
 	if err := tm.NewSession(context.Background(), name, cwd, argv[0], argv[1:]...); err != nil {
 		return "", err
 	}

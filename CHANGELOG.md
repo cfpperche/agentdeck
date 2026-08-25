@@ -17,6 +17,9 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
   Mobile keeps the native bar.
 
 ### Changed
+- **TUI resumes the protocol session**: `claude --resume <id>`,
+  `pi --session <jsonl>`, `codex resume <id>`. Opening Terminal no
+  longer starts a blank splash next to an existing chat.
 - **Chat | Terminal toggle** (no split dock): opening Terminal fills
   the column; Chat returns to the conversation. Exclusive views — the
   squeezed dock + empty chat overlay is gone. ADR-0008 amended.

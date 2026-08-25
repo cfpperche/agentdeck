@@ -129,8 +129,10 @@ type Adapter struct {
 	// own CLI format, so their streams must be read with parseClaude.
 	ParseLive func(line string) []Event
 	// BuildTUI, when non-nil, is the interactive TUI argv (ADR-0008).
+	// ref is the native session id so the TUI resumes the same
+	// conversation the protocol wrote (claude --resume, pi --session).
 	// Exclusive with the protocol process — never run both.
-	BuildTUI func() []string
+	BuildTUI func(ref string) []string
 }
 
 // Registry holds discovered agents, preserving stable order.
