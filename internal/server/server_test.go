@@ -322,6 +322,36 @@ func TestFsDirsAndSessionCwd(t *testing.T) {
 	}
 }
 
+func TestFsFiles(t *testing.T) {
+	ts := newTestServer(t)
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "src"), 0o755)
+	os.WriteFile(filepath.Join(dir, "src", "main.go"), []byte("package main\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "README.md"), []byte("# t\n"), 0o644)
+	os.MkdirAll(filepath.Join(dir, "node_modules", "x"), 0o755)
+	os.WriteFile(filepath.Join(dir, "node_modules", "x", "index.js"), []byte("1"), 0o644)
+
+	resp, _ := http.Get(ts.URL + "/api/fs/files?path=" + dir + "&q=main")
+	if resp.StatusCode != 200 {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	var body struct {
+		Files []struct{ Name, Rel string } `json:"files"`
+	}
+	json.NewDecoder(resp.Body).Decode(&body)
+	if len(body.Files) != 1 || body.Files[0].Rel != "src/main.go" {
+		t.Fatalf("%+v", body.Files)
+	}
+
+	resp, _ = http.Get(ts.URL + "/api/fs/files?path=" + dir)
+	json.NewDecoder(resp.Body).Decode(&body)
+	for _, f := range body.Files {
+		if strings.Contains(f.Rel, "node_modules") {
+			t.Fatalf("leaked deps: %+v", body.Files)
+		}
+	}
+}
+
 func TestMkdir(t *testing.T) {
 	ts := newTestServer(t)
 	home, _ := os.UserHomeDir()

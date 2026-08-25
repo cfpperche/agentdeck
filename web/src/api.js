@@ -42,6 +42,12 @@ export const api = {
   closeTerminal: (id) =>
     fetch(`/api/sessions/${id}/terminal`, { method: "DELETE" }).then(json),
   status: (id) => fetch(`/api/sessions/${id}/status`).then(json),
+  files: (path, q, signal) => {
+    const u = new URL("/api/fs/files", location.origin);
+    u.searchParams.set("path", path);
+    if (q) u.searchParams.set("q", q);
+    return fetch(u, { signal }).then(json);
+  },
 };
 
 export function openEvents(sid, onEvent) {

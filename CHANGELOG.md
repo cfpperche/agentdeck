@@ -7,6 +7,9 @@ Versioning: [SemVer](https://semver.org/). The repo language is English.
 ## [Unreleased]
 
 ### Added
+- **Composer Fase D (slash + @file)**: `/` palette (`/new` `/term`
+  `/stop` `/settings` `/devices` `/system`) and `@` fuzzy file picker
+  over the session cwd (`GET /api/fs/files`). Image paste still open.
 - **Composer statusline — OpenCode**: scan
   `~/.local/share/opencode/opencode.db` (`session.directory` = cwd)
   for cost + tokens_input/output/cache. Same Bar as pi. Window 128k.

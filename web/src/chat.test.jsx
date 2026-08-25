@@ -16,6 +16,7 @@ vi.mock("./api.js", () => ({
     clearQueue: vi.fn().mockResolvedValue({}),
     control: vi.fn().mockResolvedValue({ ok: true }),
     status: vi.fn().mockResolvedValue({ cwd: "~/w" }),
+    files: vi.fn().mockResolvedValue({ files: [] }),
   },
   openEvents: vi.fn().mockReturnValue({
     close: vi.fn(),

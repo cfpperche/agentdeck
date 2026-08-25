@@ -275,6 +275,7 @@ export function Chat({ session, agentMeta, onOpenSidebar, onSessionUpdated, onSt
         caps={caps}
         statusBar={statusBar}
         termOpen={dockOpen}
+        cwd={session.cwd}
         onToggleTerm={async () => {
           if (dockOpen) { setDockOpen(false); setTermMax(false); return; }
           try {

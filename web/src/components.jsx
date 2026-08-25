@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Markdown } from "./markdown.jsx";
 import { AgentIcon } from "./icons.jsx";
 import { ComposerStatus } from "./composerstatus.jsx";
+import { api } from "./api.js";
+import { filterSlash, parseAtToken, insertMention } from "./slash.js";
 
 /* ------------------------------------------------------------------ logo */
 export function Logo({ size = 20 }) {
@@ -272,10 +274,15 @@ export function Message({ m }) {
   );
 }
 
-export function Composer({ running, onSend, onStop, disabled, sessionId, agentId, caps, termOpen, onToggleTerm, statusBar }) {
+export function Composer({ running, onSend, onStop, disabled, sessionId, agentId, caps, termOpen, onToggleTerm, statusBar, cwd }) {
   const [text, setText] = useState("");
   const ref = useRef(null);
   const [openMenu, setOpenMenu] = useState(null); // 'model' | 'think' | null
+  const [caret, setCaret] = useState(0);
+  const [pickIdx, setPickIdx] = useState(0);
+  const [atHits, setAtHits] = useState([]);
+  const slashHits = filterSlash(text);
+  const atTok = slashHits.length ? null : parseAtToken(text, caret);
 
   // composer controls (ADR-0006): model/thinking/mode selected per agent,
   // persisted so the next session starts where you left off.
@@ -326,6 +333,17 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
       ref.current.style.height = Math.min(ref.current.scrollHeight, 160) + "px";
     }
   }, [text]);
+  useEffect(() => { setPickIdx(0); }, [text, atTok?.query]);
+  useEffect(() => {
+    if (!atTok || !cwd) { setAtHits([]); return; }
+    const ac = new AbortController();
+    const t = setTimeout(() => {
+      api.files(cwd, atTok.query, ac.signal)
+        .then((r) => setAtHits(r.files || []))
+        .catch(() => setAtHits([]));
+    }, 120);
+    return () => { clearTimeout(t); ac.abort(); };
+  }, [atTok?.query, cwd, !!atTok]);
 
   const submit = () => {
     // no `running` guard: while a turn is in flight the message QUEUES
@@ -340,6 +358,31 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
     setText("");
     if (draftKey) localStorage.removeItem(draftKey);
   };
+
+  const pickSlash = (cmd) => {
+    setText("");
+    if (draftKey) localStorage.removeItem(draftKey);
+    if (!cmd) return;
+    if (cmd.run === "term") { onToggleTerm?.(); return; }
+    if (cmd.run === "stop") { onStop?.(); return; }
+    dispatchEvent(new CustomEvent("agentdeck-slash", { detail: cmd }));
+  };
+  const pickFile = (f) => {
+    if (!atTok || !f) return;
+    const next = insertMention(text, atTok, f.rel);
+    setText(next.text);
+    setCaret(next.caret);
+    requestAnimationFrame(() => {
+      if (!ref.current) return;
+      ref.current.focus();
+      ref.current.setSelectionRange(next.caret, next.caret);
+    });
+  };
+  const picker = slashHits.length
+    ? { kind: "slash", items: slashHits }
+    : atHits.length
+      ? { kind: "at", items: atHits }
+      : null;
 
   return (
     <div
@@ -357,21 +400,56 @@ export function Composer({ running, onSend, onStop, disabled, sessionId, agentId
         {/* one bordered block owns everything (Cursor shape): textarea on
             top, control strip inside the same box */}
         <div
-          class="rounded-xl flex flex-col"
+          class="rounded-xl flex flex-col relative"
           style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
           onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
           onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
         >
+          {picker && (
+            <ul class="slash-menu" role="listbox">
+              {picker.items.map((it, i) => (
+                <li key={it.id || it.rel}>
+                  <button
+                    type="button"
+                    class={"slash-item" + (i === pickIdx ? " active" : "")}
+                    onMouseEnter={() => setPickIdx(i)}
+                    onClick={() => picker.kind === "slash" ? pickSlash(it) : pickFile(it)}
+                  >
+                    <span class="slash-label">{picker.kind === "slash" ? it.label : "@" + it.rel}</span>
+                    <span class="slash-hint">{picker.kind === "slash" ? it.hint : it.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <textarea
             ref={ref}
             rows="1"
             value={text}
             disabled={disabled}
-            onInput={(e) => setText(e.target.value)}
+            onInput={(e) => { setText(e.target.value); setCaret(e.target.selectionStart); }}
+            onClick={(e) => setCaret(e.target.selectionStart)}
+            onKeyUp={(e) => setCaret(e.target.selectionStart)}
             onKeyDown={(e) => {
+              if (picker) {
+                if (e.key === "ArrowDown") { e.preventDefault(); setPickIdx((i) => Math.min(picker.items.length - 1, i + 1)); return; }
+                if (e.key === "ArrowUp") { e.preventDefault(); setPickIdx((i) => Math.max(0, i - 1)); return; }
+                if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
+                  e.preventDefault();
+                  const it = picker.items[pickIdx];
+                  if (picker.kind === "slash") pickSlash(it); else pickFile(it);
+                  return;
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  if (picker.kind === "slash") setText("");
+                  else setAtHits([]);
+                  return;
+                }
+              }
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
             }}
-            placeholder={disabled ? "open a session to start" : "message the agent\u2026"}
+            placeholder={disabled ? "open a session to start" : "message the agent, / commands, @ files"}
             class="flex-1 resize-none px-4 pt-3 pb-1 text-[15px] focus:outline-none disabled:opacity-50 bg-transparent"
             style={{ color: "var(--text-1)", maxHeight: 160, border: "none" }}
           />

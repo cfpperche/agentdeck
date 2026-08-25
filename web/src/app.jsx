@@ -68,6 +68,24 @@ export function App() {
     addEventListener("agentdeck-share", on);
     return () => removeEventListener("agentdeck-share", on);
   }, []);
+  useEffect(() => {
+    const on = (e) => {
+      const run = e.detail?.run;
+      if (run === "new") { closeOverlays(); openNewSessionTab(); return; }
+      if (run === "settings") {
+        closeOverlays(); setSettingsOpen(true);
+        history.pushState({}, "", overlayPath("settings", tabIds(), activeId));
+      } else if (run === "devices") {
+        closeOverlays(); setDevicesOpen(true);
+        history.pushState({}, "", overlayPath("devices", tabIds(), activeId));
+      } else if (run === "system") {
+        closeOverlays(); setSystemOpen(true);
+        history.pushState({}, "", overlayPath("system", tabIds(), activeId));
+      }
+    };
+    addEventListener("agentdeck-slash", on);
+    return () => removeEventListener("agentdeck-slash", on);
+  });
 
   useEffect(() => {
     const ping = () => {

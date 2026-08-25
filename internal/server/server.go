@@ -54,6 +54,7 @@ func (s *Server) Routes() http.Handler {
 
 	mux.HandleFunc("GET /api/agents", s.handleAgents)
 	mux.HandleFunc("GET /api/fs/dirs", s.handleListDirs)
+	mux.HandleFunc("GET /api/fs/files", s.handleListFiles)
 	mux.HandleFunc("POST /api/fs/mkdir", s.handleMkdir)
 	mux.HandleFunc("GET /api/server-info", s.handleServerInfo)
 	mux.HandleFunc("GET /api/system", s.handleSystem)
@@ -139,6 +140,79 @@ func (s *Server) handleListDirs(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Slice(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
 	writeJSON(w, http.StatusOK, map[string]any{"path": root, "dirs": out})
+}
+
+// handleListFiles walks files under ?path= for the composer @ picker.
+// Hidden dirs, VCS/deps, and anything outside $HOME are skipped.
+func (s *Server) handleListFiles(w http.ResponseWriter, r *http.Request) {
+	root := r.URL.Query().Get("path")
+	if root == "" {
+		writeErr(w, 400, "path required")
+		return
+	}
+	root = filepath.Clean(root)
+	if !filepath.IsAbs(root) {
+		writeErr(w, 400, "path must be absolute")
+		return
+	}
+	st, err := os.Stat(root)
+	if err != nil || !st.IsDir() {
+		writeErr(w, 400, "not a directory: "+root)
+		return
+	}
+	q := strings.ToLower(r.URL.Query().Get("q"))
+	type fileEntry struct {
+		Name string `json:"name"`
+		Rel  string `json:"rel"`
+		Path string `json:"path"`
+	}
+	skip := map[string]bool{
+		".git": true, "node_modules": true, ".cache": true, "dist": true,
+		"build": true, "target": true, "vendor": true, "__pycache__": true,
+		".venv": true, "venv": true, ".next": true, "coverage": true,
+	}
+	out := []fileEntry{}
+	visited := 0
+	filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		visited++
+		if visited > 4000 {
+			return filepath.SkipAll
+		}
+		name := d.Name()
+		if name != "." && strings.HasPrefix(name, ".") {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.IsDir() {
+			if skip[name] {
+				return filepath.SkipDir
+			}
+			rel, _ := filepath.Rel(root, p)
+			if rel != "." && strings.Count(rel, string(os.PathSeparator)) >= 8 {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		rel, err := filepath.Rel(root, p)
+		if err != nil {
+			return nil
+		}
+		relSlash := filepath.ToSlash(rel)
+		if q != "" && !strings.Contains(strings.ToLower(relSlash), q) && !strings.Contains(strings.ToLower(name), q) {
+			return nil
+		}
+		out = append(out, fileEntry{Name: name, Rel: relSlash, Path: p})
+		if len(out) >= 80 {
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	writeJSON(w, http.StatusOK, map[string]any{"path": root, "files": out})
 }
 
 // handleMkdir creates a directory (parents allowed). Guardrails:
